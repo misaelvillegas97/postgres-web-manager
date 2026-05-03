@@ -1,105 +1,166 @@
-# New Nx Repository
+# PgStudio — PostgreSQL Web Manager
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+A web-based PostgreSQL administration tool similar to DBeaver, built with Angular and a NestJS gateway backend.
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
-
-[Learn more about this workspace setup and its capabilities](https://nx.dev/nx-api/js?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
-## Try the full Nx platform
-🚀 If you haven't connected to Nx Cloud yet, [complete your setup here](https://cloud.nx.app/setup/connect-workspace/guide). Get faster builds with remote caching, distributed task execution, and self-healing CI. [See how your workspace can benefit](#nx-cloud).
-## Generate a library
-
-```sh
-npx nx g @nx/js:lib packages/pkg1 --publishable --importPath=@my-org/pkg1
-```
-
-## Run tasks
-
-To build the library use:
-
-```sh
-npx nx build pkg1
-```
-
-To run any task with Nx use:
-
-```sh
-npx nx <target> <project-name>
-```
-
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
-
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Versioning and releasing
-
-To version and release the library use
+## Architecture
 
 ```
-npx nx release
+Angular App (apps/web)
+   ↓ HTTPS / WebSocket
+PgStudio Gateway Backend (apps/api)
+   ↓ TCP PostgreSQL protocol
+PostgreSQL Server
 ```
 
-Pass `--dry-run` to see what would happen without actually releasing the library.
+The browser never connects directly to PostgreSQL. All communication passes through the NestJS gateway, which handles authentication, authorization, auditing, and actual PostgreSQL connections.
 
-[Learn more about Nx release &raquo;](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## Monorepo Structure
 
-## Keep TypeScript project references up to date
-
-Nx automatically updates TypeScript [project references](https://www.typescriptlang.org/docs/handbook/project-references.html) in `tsconfig.json` files to ensure they remain accurate based on your project dependencies (`import` or `require` statements). This sync is automatically done when running tasks such as `build` or `typecheck`, which require updated references to function correctly.
-
-To manually trigger the process to sync the project graph dependencies information to the TypeScript project references, run the following command:
-
-```sh
-npx nx sync
+```
+pgstudio
+├── apps
+│   ├── web          # Angular 19 frontend (standalone components, signals, SCSS)
+│   ├── web-e2e      # Playwright e2e tests for the web app
+│   ├── api          # NestJS 11 gateway backend
+│   └── api-e2e      # e2e tests for the API
+├── libs
+│   └── contracts    # Shared TypeScript DTOs, enums, and interfaces
+└── docker
+    ├── docker-compose.yml
+    ├── api.Dockerfile
+    ├── web.Dockerfile
+    └── nginx.conf
 ```
 
-You can enforce that the TypeScript project references are always in the correct state when running in CI by adding a step to your CI job configuration that runs the following command:
+## Tech Stack
 
-```sh
-npx nx sync:check
+### Frontend (`apps/web`)
+- **Angular 19** with standalone components and signals
+- **Tailwind CSS** + **Angular Material** (planned)
+- **Monaco Editor** for SQL editing (planned)
+- **TanStack Table** for data grids (planned)
+- TypeScript strict mode
+
+### Backend (`apps/api`)
+- **NestJS 11** gateway
+- **node-postgres (`pg`)** for PostgreSQL connections
+- **WebSocket** via `@nestjs/websockets` + Socket.IO
+- Modular architecture: auth, connections, query, metadata, table-data, ddl, explain, sessions
+
+### Shared (`libs/contracts`)
+- TypeScript contracts shared between frontend and backend:
+  - `auth.contracts.ts` — Login, tokens, user roles
+  - `connection.contracts.ts` — Connection profiles, DTOs
+  - `query.contracts.ts` — SQL execution, risk levels
+  - `metadata.contracts.ts` — Schemas, tables, columns, indexes
+  - `ddl.contracts.ts` — Table creation/alteration
+  - `explain.contracts.ts` — Query analysis plans
+  - `session.contracts.ts` — WebSocket session types
+  - `table-data.contracts.ts` — Table CRUD operations
+
+## Getting Started
+
+### Prerequisites
+- Node.js 20+
+- npm 10+
+- Docker & Docker Compose (for local PostgreSQL)
+
+### Install Dependencies
+
+```bash
+npm install
 ```
 
-[Learn more about nx sync](https://nx.dev/reference/nx-commands#sync)
+### Development
 
-## Nx Cloud
-
-Nx Cloud ensures a [fast and scalable CI](https://nx.dev/ci/intro/why-nx-cloud?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) pipeline. It includes features such as:
-
-- [Remote caching](https://nx.dev/ci/features/remote-cache?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task distribution across multiple machines](https://nx.dev/ci/features/distribute-task-execution?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Automated e2e test splitting](https://nx.dev/ci/features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task flakiness detection and rerunning](https://nx.dev/ci/features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-### Set up CI (non-Github Actions CI)
-
-**Note:** This is only required if your CI provider is not GitHub Actions.
-
-Use the following command to configure a CI workflow for your workspace:
-
-```sh
-npx nx g ci-workflow
+Start the API:
+```bash
+npx nx serve api
 ```
 
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+Start the Angular app:
+```bash
+npx nx serve web
+```
 
-## Install Nx Console
+### Build
 
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
+```bash
+# Build everything
+npx nx run-many -t build
 
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+# Build individual projects
+npx nx build contracts
+npx nx build @org/api
+npx nx build web
+```
 
-## Useful links
+### Docker
 
-Learn more:
+```bash
+# Start local development stack (API + Web + PostgreSQL)
+cd docker
+docker-compose up
+```
 
-- [Learn more about this workspace setup](https://nx.dev/nx-api/js?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## API Endpoints
 
-And join the Nx community:
+### Auth
+- `POST /api/auth/login`
+- `POST /api/auth/refresh`
+- `POST /api/auth/logout`
+- `GET  /api/auth/me`
 
-- [Discord](https://go.nx.dev/community)
-- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
-- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+### Connections
+- `GET    /api/connections`
+- `POST   /api/connections`
+- `GET    /api/connections/:id`
+- `PATCH  /api/connections/:id`
+- `DELETE /api/connections/:id`
+- `POST   /api/connections/test`
+
+### Queries
+- `POST /api/queries/execute`
+- `POST /api/queries/explain`
+- `POST /api/queries/cancel`
+- `GET  /api/queries/history`
+
+### Metadata
+- `GET /api/metadata/:connectionId/schemas`
+- `GET /api/metadata/:connectionId/schemas/:schema/tables`
+- `GET /api/metadata/:connectionId/schemas/:schema/tables/:table`
+- `GET /api/metadata/:connectionId/schemas/:schema/functions`
+- `GET /api/metadata/:connectionId/extensions`
+
+### Table Data
+- `POST /api/table-data/read`
+- `POST /api/table-data/preview-changes`
+- `POST /api/table-data/apply-changes`
+
+### DDL
+- `POST /api/ddl/create-table/preview`
+- `POST /api/ddl/create-table/execute`
+- `POST /api/ddl/alter-table/preview`
+- `POST /api/ddl/alter-table/execute`
+
+## WebSocket
+
+Endpoint: `WS /` (Socket.IO)
+
+Events:
+- `session.open` — Open a new database session
+- `session.close` — Close session
+- `query.start` — Query started
+- `query.rows` — Partial row results
+- `query.done` — Query completed
+- `query.error` — Query error
+- `query.cancelled` — Query cancelled
+
+## Roadmap
+
+- **Phase 1**: Gateway MVP (login, connections, execute queries, metadata)
+- **Phase 2**: Monaco Editor, tabs, autocompletion, CSV export
+- **Phase 3**: Editable table browser
+- **Phase 4**: Visual DDL designer
+- **Phase 5**: Query Analyzer (EXPLAIN / EXPLAIN ANALYZE)
+- **Phase 6**: SaaS security (workspaces, roles, audit)

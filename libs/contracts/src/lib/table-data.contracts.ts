@@ -18,7 +18,7 @@ export interface ReadTableDataRequest {
 }
 
 export interface ReadTableDataResponse {
-  columns: import('./query.contracts').QueryColumn[];
+  columns: { name: string; dataTypeId: number; dataTypeName?: string }[];
   rows: Record<string, unknown>[];
   totalCount: number;
   page: number;
