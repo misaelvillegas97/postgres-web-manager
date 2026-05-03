@@ -1,0 +1,44 @@
+version: '3.8'
+
+# Development stack: hot-reload for API, Angular dev server, PostgreSQL
+# Usage: docker-compose -f docker/docker-compose.dev.yml up
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: pgstudio
+      POSTGRES_PASSWORD: pgstudio
+      POSTGRES_DB: pgstudio
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgstudio-dev-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U pgstudio']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/api.dev.Dockerfile
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://pgstudio:pgstudio@postgres:5432/pgstudio
+      JWT_SECRET: dev-jwt-secret-NOT-FOR-PRODUCTION
+      ENCRYPTION_KEY: '0000000000000000000000000000000000000000000000000000000000000001'
+      PORT: 3000
+    volumes:
+      - ../apps/api/src:/app/apps/api/src:ro
+      - ../libs/contracts/src:/app/libs/contracts/src:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgstudio-dev-data:

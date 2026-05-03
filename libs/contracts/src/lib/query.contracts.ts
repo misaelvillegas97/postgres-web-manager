@@ -56,3 +56,14 @@ export interface QueryHistoryEntry {
   errorMessage?: string;
   createdAt: string;
 }
+
+export interface ApiErrorResponse {
+  status: number;
+  code: string;
+  message: string;
+  detail?: string;
+}
+
+export interface CancelQueryRequest {
+  queryId: string;
+}

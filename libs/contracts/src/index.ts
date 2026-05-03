@@ -1,3 +1,4 @@
+export * from './lib/audit.contracts.js';
 export * from './lib/auth.contracts.js';
 export * from './lib/connection.contracts.js';
 export * from './lib/ddl.contracts.js';
@@ -6,3 +7,4 @@ export * from './lib/metadata.contracts.js';
 export * from './lib/query.contracts.js';
 export * from './lib/session.contracts.js';
 export * from './lib/table-data.contracts.js';
+export * from './lib/workspace.contracts.js';

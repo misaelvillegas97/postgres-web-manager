@@ -1,13 +1,14 @@
 import { Component } from '@angular/core';
-import { RouterModule } from '@angular/router';
-import { NxWelcome } from './nx-welcome';
+import { RouterOutlet } from '@angular/router';
+import { ToastContainerComponent } from './shared/components/toast-container.component';
 
 @Component({
-  imports: [NxWelcome, RouterModule],
+  imports: [RouterOutlet, ToastContainerComponent],
   selector: 'app-root',
-  templateUrl: './app.html',
-  styleUrl: './app.scss',
+  template: `
+    <router-outlet />
+    <app-toast-container />
+  `,
+  styles: [':host { display: block; height: 100%; }'],
 })
-export class App {
-  protected title = 'web';
-}
+export class App {}

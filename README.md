@@ -12,6 +12,301 @@ PgStudio Gateway Backend (apps/api)
 PostgreSQL Server
 ```
 
+The browser never connects directly to PostgreSQL. All communication passes through the NestJS gateway, which handles authentication, authorization, auditing, and PostgreSQL connections.
+
+## Monorepo Structure
+
+```
+pgstudio
+├── apps
+│   ├── web          # Angular 21 frontend (standalone components, signals, SCSS)
+│   ├── web-e2e      # Playwright e2e tests for the web app
+│   ├── api          # NestJS 11 gateway backend
+│   └── api-e2e      # e2e tests for the API
+├── libs
+│   └── contracts    # Shared TypeScript DTOs, enums, and interfaces
+└── docker
+    ├── docker-compose.yml          # Production stack
+    ├── docker-compose.dev.yml      # Development stack (hot-reload)
+    ├── api.Dockerfile              # Multi-stage production image
+    ├── api.dev.Dockerfile          # Development image with live reload
+    ├── web.Dockerfile              # Nginx + Angular production build
+    └── nginx.conf                  # Nginx configuration (API proxy + SPA routing)
+```
+
+## Tech Stack
+
+### Frontend (`apps/web`)
+- **Angular 21** with standalone components and signals
+- **Monaco Editor** for SQL editing
+- **TailwindCSS** for styling
+- TypeScript strict mode
+
+### Backend (`apps/api`)
+- **NestJS 11** gateway
+- **node-postgres (`pg`)** for PostgreSQL connections
+- **WebSocket** via `@nestjs/websockets` + Socket.IO
+- **JWT authentication** (access 1h + refresh 7d)
+- **Role-based access control** (OWNER > ADMIN > DEVELOPER > READ_ONLY)
+- **Rate limiting** via `@nestjs/throttler` (300 req/min per IP)
+- **Audit logging** for all write/DDL operations
+- Modular architecture: auth, connections, query, metadata, table-data, ddl, explain, sessions, audit
+
+### Shared (`libs/contracts`)
+- TypeScript contracts shared between frontend and backend:
+  - `auth.contracts.ts` — Login, tokens, user roles
+  - `connection.contracts.ts` — Connection profiles, DTOs
+  - `query.contracts.ts` — SQL execution, risk levels
+  - `metadata.contracts.ts` — Schemas, tables, columns, indexes
+  - `ddl.contracts.ts` — Table creation/alteration
+  - `explain.contracts.ts` — Query analysis plans
+  - `session.contracts.ts` — WebSocket session types
+  - `table-data.contracts.ts` — Table CRUD operations
+
+## Getting Started
+
+### Prerequisites
+- Node.js 20+
+- npm 10+
+- Docker & Docker Compose
+
+### Install Dependencies
+
+```bash
+npm install
+```
+
+### Development
+
+#### Option A — Local Node (no Docker)
+
+Copy and configure environment variables:
+```bash
+cp apps/api/.env.example apps/api/.env
+# Edit DATABASE_URL, JWT_SECRET, ENCRYPTION_KEY
+```
+
+Start PostgreSQL (Docker):
+```bash
+docker run -d --name pgstudio-db \
+  -e POSTGRES_USER=pgstudio \
+  -e POSTGRES_PASSWORD=pgstudio \
+  -e POSTGRES_DB=pgstudio \
+  -p 5432:5432 \
+  postgres:16-alpine
+```
+
+Start the API (hot-reload):
+```bash
+npx nx serve @org/api
+```
+
+Start the Angular dev server:
+```bash
+npx nx serve web
+```
+
+Open: http://localhost:4200
+
+#### Option B — Full Docker dev stack
+
+```bash
+docker-compose -f docker/docker-compose.dev.yml up
+```
+
+### Build
+
+```bash
+# Validate contracts
+npx nx build @postgres-web-manager/contracts
+
+# Build API
+npx nx build @org/api
+
+# Build web
+npx nx build web
+
+# Build all
+npx nx run-many -t build
+```
+
+### Docker (production)
+
+```bash
+docker-compose -f docker/docker-compose.yml up --build
+```
+
+Serves:
+| Service | URL |
+|---------|-----|
+| Web app | http://localhost:4200 |
+| API | http://localhost:3000/api |
+| PostgreSQL (internal) | postgres:5432 |
+
+---
+
+## Environment Variables
+
+### Backend (`apps/api/.env`)
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `DATABASE_URL` | Yes | — | PostgreSQL connection string for the internal PgStudio metadata DB |
+| `JWT_SECRET` | Yes | `dev-jwt-secret-not-for-production` | Secret used to sign access and refresh tokens. **Must be changed in production.** |
+| `ENCRYPTION_KEY` | Yes | — | 32-byte hex key used to encrypt stored PostgreSQL passwords (AES-256). Generate with `openssl rand -hex 32`. |
+| `PORT` | No | `3000` | HTTP port the API listens on |
+| `NODE_ENV` | No | `development` | `development` or `production` |
+
+> **Security note**: `JWT_SECRET` and `ENCRYPTION_KEY` should be unique, randomly generated secrets. Never use the development defaults in production.
+
+---
+
+## Security Model
+
+### Authentication
+- JWT-based: access tokens (1 hour) + refresh tokens (7 days)
+- All endpoints require a valid JWT by default
+- Routes marked `@Public()` are exempt (login, refresh, health)
+
+### Authorization (Roles)
+| Role | Capabilities |
+|------|-------------|
+| `OWNER` | Full access, can delete connections |
+| `ADMIN` | Full access, audit logs, can delete connections |
+| `DEVELOPER` | Execute queries (including DDL), browse tables, explain |
+| `READ_ONLY` | SELECT queries only; DDL, DML and destructive operations are blocked |
+
+### Connection Access Modes
+Each connection profile has an `access_mode` field:
+- `read-write` — all SQL allowed (subject to role check above)
+- `read-only` — only SAFE queries (SELECT, EXPLAIN without ANALYZE, SHOW) allowed
+
+### Rate Limiting
+- 300 requests per minute per IP (global throttle)
+
+### Audit Logging
+Write, DDL, Destructive and Admin SQL operations are logged to `audit_logs` with:
+- Workspace + user + connection context
+- Action + risk level + SQL preview (truncated at 500 chars)
+- Accessible via `GET /api/audit` (ADMIN/OWNER only)
+
+---
+
+## API Endpoints
+
+### System
+- `GET /api/health` — Health check (public)
+
+### Auth
+- `POST /api/auth/login` — Login with email/password
+- `POST /api/auth/refresh` — Refresh access token
+- `POST /api/auth/logout` — Invalidate refresh token
+- `GET  /api/auth/me` — Current user profile
+
+### Connections
+- `GET    /api/connections` — List workspace connections
+- `POST   /api/connections` — Create connection
+- `GET    /api/connections/:id` — Get connection
+- `PATCH  /api/connections/:id` — Update connection
+- `DELETE /api/connections/:id` — Delete connection _(ADMIN/OWNER only)_
+- `POST   /api/connections/test` — Test connection credentials
+- `POST   /api/connections/:id/unlock` — Unlock connection pool
+- `DELETE /api/connections/:id/unlock` — Lock (close) connection pool
+
+### Queries
+- `POST /api/queries/execute` — Execute SQL
+- `POST /api/queries/explain` — EXPLAIN / EXPLAIN ANALYZE
+- `POST /api/queries/cancel` — Cancel running query
+- `GET  /api/queries/history` — Query history
+
+### Metadata
+- `GET /api/metadata/:connectionId/schemas`
+- `GET /api/metadata/:connectionId/schemas/:schema/tables`
+- `GET /api/metadata/:connectionId/schemas/:schema/tables/:table`
+- `GET /api/metadata/:connectionId/schemas/:schema/functions`
+- `GET /api/metadata/:connectionId/extensions`
+
+### Table Data
+- `POST /api/table-data/read`
+- `POST /api/table-data/preview-changes`
+- `POST /api/table-data/apply-changes` _(blocked in read-only mode)_
+
+### DDL
+- `POST /api/ddl/create-table/preview`
+- `POST /api/ddl/create-table/execute` _(blocked in read-only mode)_
+- `POST /api/ddl/alter-table/preview`
+- `POST /api/ddl/alter-table/execute` _(blocked in read-only mode)_
+
+### Audit
+- `GET /api/audit` — Paginated audit log _(ADMIN/OWNER only)_
+
+## WebSocket
+
+Endpoint: `WS /` (Socket.IO)
+
+Authentication: pass JWT in `auth.token` during handshake:
+```js
+const socket = io('http://localhost:3000', { auth: { token: '<access_token>' } });
+```
+
+Events:
+- `session.open` — Open a new database session
+- `session.close` — Close session
+- `query.start` — Query started
+- `query.rows` — Partial row results
+- `query.done` — Query completed
+- `query.error` — Query error
+- `query.cancelled` — Query cancelled
+
+## Validation Commands
+
+```bash
+# Build everything
+npx nx run-many -t build
+
+# Lint all
+npx nx run-many -t lint
+
+# Unit tests
+npx nx run-many -t test
+
+# API e2e
+npx nx e2e @org/api-e2e
+
+# Web e2e
+npx nx e2e web-e2e
+```
+
+## Deployment
+
+### Prerequisites
+- Domain with HTTPS (TLS termination via reverse proxy or load balancer)
+- PostgreSQL 14+ instance for PgStudio metadata storage
+- 32-byte ENCRYPTION_KEY (generate once, store securely)
+- Strong random JWT_SECRET
+
+### Production Checklist
+- [ ] Set `NODE_ENV=production`
+- [ ] Replace default `JWT_SECRET` with a random 64+ char value
+- [ ] Generate `ENCRYPTION_KEY` with `openssl rand -hex 32`
+- [ ] Set `DATABASE_URL` to a dedicated PostgreSQL database
+- [ ] Configure TLS on the reverse proxy (SSL termination)
+- [ ] Set CORS policy in `app.enableCors()` to your domain
+- [ ] Review rate-limit settings (`ThrottlerModule`)
+- [ ] Rotate secrets periodically
+
+
+
+## Architecture
+
+```
+Angular App (apps/web)
+   ↓ HTTPS / WebSocket
+PgStudio Gateway Backend (apps/api)
+   ↓ TCP PostgreSQL protocol
+PostgreSQL Server
+```
+
 The browser never connects directly to PostgreSQL. All communication passes through the NestJS gateway, which handles authentication, authorization, auditing, and actual PostgreSQL connections.
 
 ## Monorepo Structure

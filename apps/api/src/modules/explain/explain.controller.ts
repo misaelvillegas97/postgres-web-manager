@@ -1,13 +1,7 @@
-import { Body, Controller, Post } from '@nestjs/common';
-import { ExplainService } from './explain.service';
-import { ExplainRequest } from '@postgres-web-manager/contracts';
+// ExplainController is deprecated. The /queries/explain endpoint is now handled
+// by QueryController (apps/api/src/modules/query/query.controller.ts).
+// This controller is kept empty to preserve the module structure.
+import { Controller } from '@nestjs/common';
 
 @Controller('explain')
-export class ExplainController {
-  constructor(private readonly explainService: ExplainService) {}
-
-  @Post()
-  explain(@Body() dto: ExplainRequest) {
-    return this.explainService.explain(dto);
-  }
-}
+export class ExplainController {}

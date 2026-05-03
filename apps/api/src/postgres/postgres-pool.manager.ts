@@ -10,12 +10,14 @@ export interface PoolConnectionConfig {
   sslMode?: 'disable' | 'prefer' | 'require' | 'verify-ca' | 'verify-full';
   statementTimeoutMs?: number;
   maxRows?: number;
+  accessMode?: 'read-only' | 'read-write';
 }
 
 @Injectable()
 export class PostgresPoolManager implements OnModuleDestroy {
   private readonly logger = new Logger(PostgresPoolManager.name);
   private readonly pools = new Map<string, Pool>();
+  private readonly accessModes = new Map<string, 'read-only' | 'read-write'>();
 
   getPool(connectionId: string): Pool {
     const pool = this.pools.get(connectionId);
@@ -51,6 +53,7 @@ export class PostgresPoolManager implements OnModuleDestroy {
 
     const pool = new Pool(poolConfig);
     this.pools.set(connectionId, pool);
+    this.accessModes.set(connectionId, config.accessMode ?? 'read-write');
     this.logger.log(`Pool created for connection: ${connectionId}`);
   }
 
@@ -59,12 +62,17 @@ export class PostgresPoolManager implements OnModuleDestroy {
     if (pool) {
       await pool.end();
       this.pools.delete(connectionId);
+      this.accessModes.delete(connectionId);
       this.logger.log(`Pool destroyed for connection: ${connectionId}`);
     }
   }
 
   hasPool(connectionId: string): boolean {
     return this.pools.has(connectionId);
+  }
+
+  getAccessMode(connectionId: string): 'read-only' | 'read-write' {
+    return this.accessModes.get(connectionId) ?? 'read-write';
   }
 
   async onModuleDestroy(): Promise<void> {

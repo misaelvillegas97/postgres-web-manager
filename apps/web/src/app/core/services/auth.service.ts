@@ -1,0 +1,83 @@
+import { Injectable, inject, signal, computed } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
+import { tap, catchError, throwError } from 'rxjs';
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  role: string;
+}
+
+export interface AuthTokens {
+  accessToken: string;
+  refreshToken: string;
+}
+
+const ACCESS_TOKEN_KEY = 'pgstudio_at';
+const REFRESH_TOKEN_KEY = 'pgstudio_rt';
+
+@Injectable({ providedIn: 'root' })
+export class AuthService {
+  private http = inject(HttpClient);
+  private router = inject(Router);
+
+  private _user = signal<UserProfile | null>(null);
+  readonly user = this._user.asReadonly();
+  readonly isAuthenticated = computed(() => this._user() !== null);
+
+  getAccessToken(): string | null {
+    return sessionStorage.getItem(ACCESS_TOKEN_KEY);
+  }
+
+  private storeTokens(tokens: AuthTokens): void {
+    sessionStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
+    sessionStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
+  }
+
+  private clearTokens(): void {
+    sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+    sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+  }
+
+  login(email: string, password: string) {
+    return this.http.post<AuthTokens>('/api/auth/login', { email, password }).pipe(
+      tap((tokens) => {
+        this.storeTokens(tokens);
+        this.loadProfile();
+      }),
+    );
+  }
+
+  refresh() {
+    const refreshToken = sessionStorage.getItem(REFRESH_TOKEN_KEY);
+    if (!refreshToken) return throwError(() => new Error('No refresh token'));
+    return this.http.post<AuthTokens>('/api/auth/refresh', { refreshToken }).pipe(
+      tap((tokens) => this.storeTokens(tokens)),
+      catchError((err) => {
+        this.logout();
+        return throwError(() => err);
+      }),
+    );
+  }
+
+  logout() {
+    const refreshToken = sessionStorage.getItem(REFRESH_TOKEN_KEY);
+    if (refreshToken) {
+      this.http.post('/api/auth/logout', { refreshToken }).subscribe({ error: () => {} });
+    }
+    this.clearTokens();
+    this._user.set(null);
+    this.router.navigate(['/login']);
+  }
+
+  loadProfile() {
+    return this.http.get<UserProfile>('/api/auth/me').pipe(
+      tap((user) => this._user.set(user)),
+      catchError((err) => {
+        this._user.set(null);
+        return throwError(() => err);
+      }),
+    );
+  }
+}

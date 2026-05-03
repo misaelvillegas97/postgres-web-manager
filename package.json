@@ -30,12 +30,14 @@
     "@swc-node/register": "1.11.1",
     "@swc/core": "1.15.8",
     "@swc/helpers": "0.5.18",
+    "@swc/jest": "^0.2.39",
     "@types/node": "20.19.9",
     "@typescript-eslint/utils": "^8.40.0",
     "angular-eslint": "^21.2.0",
     "eslint": "^9.8.0",
     "eslint-config-prettier": "^10.0.0",
     "eslint-plugin-playwright": "^1.6.2",
+    "jest": "^30.3.0",
     "jsdom": "^27.1.0",
     "nx": "22.7.0",
     "prettier": "^3.8.1",
@@ -63,9 +65,14 @@
     "@nestjs/platform-express": "^11.0.0",
     "@nestjs/platform-socket.io": "^11.1.19",
     "@nestjs/websockets": "^11.1.19",
+    "@types/jsonwebtoken": "^9.0.10",
     "axios": "^1.6.0",
+    "jsonwebtoken": "^9.0.3",
+    "monaco-editor": "^0.55.1",
     "reflect-metadata": "^0.1.13",
     "rxjs": "~7.8.0",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
+    "sql-formatter": "^15.7.3"
   }
 }

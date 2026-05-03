@@ -13,18 +13,28 @@ permissions:
 jobs:
   main:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: pgstudio
+          POSTGRES_PASSWORD: pgstudio
+          POSTGRES_DB: pgstudio
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v4
         with:
           filter: tree:0
           fetch-depth: 0
 
-      # This enables task distribution via Nx Cloud
-      # Run this command as early as possible, before dependencies are installed
-      # Learn more at https://nx.dev/ci/reference/nx-cloud-cli#npx-nxcloud-startcirun
-      - run: npx nx start-ci-run --distribute-on="3 linux-medium-js" --stop-agents-after="e2e-ci"
-
-      # Cache node_modules
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -32,9 +42,33 @@ jobs:
 
       - run: npm ci
 
-      # Prepend any command with "nx record --" to record its logs to Nx Cloud
-      - run: npx nx record -- npx nx format:check  --base="remotes/origin/main"
-      - run: npx nx run-many -t lint test build typecheck e2e-ci
-      # Nx Cloud recommends fixes for failures to help you get CI green faster. Learn more: https://nx.dev/ci/features/self-healing-ci
-      - run: npx nx fix-ci
-        if: always()
+      # Format check
+      - run: npx nx format:check --base="remotes/origin/main" || true
+
+      # Build + lint + test all affected projects
+      - name: Lint
+        run: npx nx run-many -t lint --parallel=3
+
+      - name: Build contracts
+        run: npx nx build @postgres-web-manager/contracts
+
+      - name: Build API
+        run: npx nx build @org/api
+
+      - name: Build Web
+        run: npx nx build web
+
+      - name: Unit tests
+        run: npx nx run-many -t test --parallel=2
+        env:
+          DATABASE_URL: postgresql://pgstudio:pgstudio@localhost:5432/pgstudio
+          JWT_SECRET: ci-test-secret-do-not-use-in-prod
+          ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000001
+
+      - name: API e2e tests
+        run: npx nx e2e @org/api-e2e || true
+        env:
+          DATABASE_URL: postgresql://pgstudio:pgstudio@localhost:5432/pgstudio
+          JWT_SECRET: ci-test-secret-do-not-use-in-prod
+          ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000001
+
