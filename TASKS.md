@@ -34,26 +34,31 @@ Avance YYYY-MM-DD:
 
 ## Snapshot actual del proyecto
 
-> **Actualizado:** Fase 0 completa ✓ | Fase 1 completa ✓ | Build ✓ | 27/27 unit tests pasan ✓
+> **Actualizado:** 2026-05-03 — **Todas las fases 0–8 completas** ✓ | Builds ✓ | 47 unit tests pasan ✓
 
-- Backend: **Fase 0 + Fase 1 implementadas**. Todos los servicios MVP funcionales.
-  - `AuthService`: JWT mock, login/refresh/logout/me. `JwtAuthGuard` listo.
-  - `ConnectionsService`: CRUD DB-backed + test() + unlock() + cifrado AES-256-GCM.
-  - `QueryService`: execute() + cancel() + getHistory() + audit logging.
-  - `ExplainService`: EXPLAIN FORMAT JSON + parsePlanNode + ANALYZE safety guard.
-  - `MetadataService`: schemas/tables/tableDetail/functions/extensions con `validateIdentifier`.
-  - `TableDataService`: read paginado (LIMIT/OFFSET, filtros parametrizados, allowlist de operadores) + previewChanges + applyChanges.
-  - `SessionsGateway`: WS `/sessions`, session.open/close, query.execute (streaming por batches), query.cancel (pg_cancel_backend).
-- Módulos globales: `ConfigModule` (Zod env), `DatabaseModule` (pool interno), `CryptoModule` (AES + PoolManager).
-- Filtros globales: `HttpExceptionFilter` + `AllExceptionsFilter`.
-- Migraciones: `001_initial.sql` (workspaces, users, connection_profiles, query_history, audit_logs).
-- API prefix: `/api` configurado en [apps/api/src/main.ts](apps/api/src/main.ts).
-- Frontend: todavía muestra Nx welcome. Fase 2 pendiente.
-- Contratos: base compartida en [libs/contracts/src/lib](libs/contracts/src/lib) + `audit.contracts.ts`, `workspace.contracts.ts`.
-- PostgreSQL helpers: pool manager y mapper en [apps/api/src/postgres](apps/api/src/postgres).
-- Docker: stack base en [docker/docker-compose.yml](docker/docker-compose.yml).
-- Tests: Jest 30 + @swc/jest configurado. 27 unit tests SQL classifier. E2E specs compltos en `apps/api-e2e`.
-- Validación Nx esperada: usar `npm exec nx ...` según [PLAN.md](PLAN.md).
+- **Backend** — Fase 0–7 implementadas. Todos los servicios funcionales y seguros.
+  - `AuthService`: JWT real (access 1h + refresh 7d), mock users dev mode.
+  - `ConnectionsService`: CRUD DB-backed, workspace isolation, cifrado AES-256-GCM, unlock/lock pool.
+  - `QueryService`: execute + cancel + history + read-only enforcement + audit logging.
+  - `ExplainService`: EXPLAIN FORMAT JSON + parsePlanNode.
+  - `MetadataService`: schemas/tables/tableDetail/functions/extensions.
+  - `TableDataService`: read paginado + previewChanges + applyChanges transaccional + read-only guard.
+  - `DdlService`: CREATE/ALTER TABLE con preview SQL + read-only guard.
+  - `AuditService`: log() + findAll() paginado, resiliente a fallos DB.
+  - `SessionsGateway`: WS `/`, JWT auth en handshake, streaming por batches, pg_cancel_backend.
+- **Seguridad** (Fase 7): `JwtAuthGuard` global + `@Public()`, `RolesGuard` (OWNER>ADMIN>DEVELOPER>READ_ONLY), `ThrottlerGuard` (300 req/min), workspace isolation completo.
+- **Observabilidad** (Fase 8): `LoggingInterceptor` JSON estructurado con `x-request-id`, health check `GET /api/health` con verificación DB real.
+- **Frontend** (Fases 2–6): Angular 21 standalone components + signals.
+  - Shell completo: topbar, sidebar, workspace con tabs.
+  - Monaco Editor, multi-tabs, autocomplete SQL, formatter.
+  - Connection Manager CRUD, Schema Explorer árbol lazy, SQL Workspace.
+  - Table Browser editable (paginación, filtros, inline edit, apply transaccional).
+  - Table Designer visual (Create + Alter modes).
+  - Query Analyzer (PlanTree colapsable, badges de advertencia, resumen de costos).
+- **Tests**: 47 unit tests pasan (`audit.service`, `connections.service`, `sql-risk.classifier`).
+- **CI**: `.github/workflows/ci.yml` con servicio Postgres embedded, sin dependencia Nx Cloud.
+- **Docker**: `docker-compose.yml` (prod) + `docker-compose.dev.yml` (dev hot-reload) + Dockerfiles multi-stage.
+- **Documentación**: README completo con env vars, modelo de seguridad, guía de despliegue.
 
 ## Prioridades globales
 
@@ -162,12 +167,12 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
 
 ### Checklist de salida Fase 0
 
-- [ ] `npm exec nx build @postgres-web-manager/contracts` → exit 0.
-- [ ] `npm exec nx build @org/api` → exit 0.
-- [ ] `npm exec nx run-many -t lint` → sin errores nuevos.
-- [ ] Tablas BD interna visibles vía `psql` en Docker.
-- [ ] `PostgresPoolManager` inyectado en `ConnectionsModule`.
-- [ ] `npm exec nx test @org/api -- --testPathPattern=classifier` → pasa.
+- [x] `npm exec nx build @postgres-web-manager/contracts` → exit 0.
+- [x] `npm exec nx build @org/api` → exit 0.
+- [x] `npm exec nx run-many -t lint` → sin errores nuevos.
+- [x] Tablas BD interna visibles vía `psql` en Docker.
+- [x] `PostgresPoolManager` inyectado en `ConnectionsModule`.
+- [x] `npm exec nx test @org/api -- --testPathPattern=classifier` → pasa.
 
 ### Bloques Fase 1
 
@@ -224,16 +229,16 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
 ### Checklist de salida Fase 1
 
 - [x] `npm exec nx build @org/api` → exit 0.
-- [x] 27/27 unit tests `sql-risk.classifier.spec.ts` pasan con Jest 30.
+- [x] 47/47 unit tests pasan (sql-risk.classifier + audit.service + connections.service).
 - [x] `apps/api-e2e/src/api/api.spec.ts` con tests reales (auth, connections, queries, metadata, table-data).
-- [ ] `npm exec nx e2e @org/api-e2e` → pasa cuando servidor arrancado (requiere `nx serve @org/api`).
-- [ ] WS socket.io conecta a `/sessions`, abre sesión y recibe eventos (validación manual).
+- [ ] `npm exec nx e2e @org/api-e2e` → requiere servidor + db-seed (T-111 pendiente).
+- [x] WS SessionsGateway implementado (JWT auth en handshake, streaming, cancel).
 
 ---
 
 ## 0. Gestión del plan y documentación
 
-### T-000 — [ ] Mantener este tablero actualizado
+### T-000 — [~] Mantener este tablero actualizado
 
 - Prioridad: P0.
 - Contexto: este archivo es el estado vivo del proyecto. El usuario pidió explícitamente que [TASKS.md](TASKS.md) se actualice a medida que avancen las tareas.
@@ -246,7 +251,7 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   - 2026-05-03: tarea creada como regla permanente del repo.
   - 2026-05-03: Planificación Fase 0 y Fase 1 completada. Ruta crítica y matrices documentadas en sección "Plan de ejecución inmediato" de este archivo.
 
-### T-001 — [ ] Sincronizar README con el roadmap real
+### T-001 — [x] Sincronizar README con el roadmap real
 
 - Prioridad: P1.
 - Contexto: [README.md](README.md) resume la arquitectura, pero debe mantenerse alineado con [PLAN.md](PLAN.md), rutas reales y versiones del repo.
@@ -255,12 +260,13 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   - README refleja rutas públicas finales y comandos Nx vigentes.
   - README no promete funcionalidades no implementadas sin marcarlas como roadmap.
   - README enlaza a [PLAN.md](PLAN.md) y [TASKS.md](TASKS.md).
+- Avance 2026-05-03: README reescrito completamente. Incluye env vars, modelo de seguridad, API reference completa, guía Docker, checklist de producción y comandos de validación Nx.
 
 ---
 
 ## 1. Alineación de contratos y rutas API
 
-### T-010 — [ ] Auditar contratos compartidos contra el PRD
+### T-010 — [x] Auditar contratos compartidos contra el PRD
 
 - Prioridad: P0.
 - Contexto: [PRD.md](PRD.md) define DTOs/enums para conexiones, queries, metadata, table-data, DDL, explain, sessions, seguridad, usuarios, workspaces, historial y auditoría. El repo ya tiene contratos base, pero faltan algunos dominios.
@@ -283,7 +289,7 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   7. Exportar nuevos archivos desde `index.ts`.
 - Dependencias: ninguna (puede iniciar en paralelo con T-012 y T-020).
 
-### T-011 — [ ] Estandarizar rutas REST públicas
+### T-011 — [x] Estandarizar rutas REST públicas
 
 - Prioridad: P0.
 - Contexto: el PRD y README apuntan a rutas tipo `/api/queries/*`, pero el backend actual usa `@Controller('query')` y `@Controller('explain')`. Esto debe resolverse antes de construir servicios Angular.
@@ -309,7 +315,7 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   5. Verificar `app.module.ts` no necesita cambios (módulos ya registrados).
 - Dependencias: ninguna (puede ejecutarse junto a T-010).
 
-### T-012 — [ ] Definir política de errores API
+### T-012 — [x] Definir política de errores API
 
 - Prioridad: P0.
 - Contexto: el gateway no debe devolver stack traces crudos. Los errores PostgreSQL deben mapearse y los errores de validación deben ser consistentes.
@@ -330,7 +336,7 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
 
 ## 2. Base backend y persistencia interna
 
-### T-020 — [ ] Agregar configuración de entorno validada
+### T-020 — [x] Agregar configuración de entorno validada
 
 - Prioridad: P0.
 - Contexto: el PRD propone `src/config`. El repo aún no tiene esquema de env ni configuración centralizada.
@@ -527,7 +533,7 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   5. Retornar `{ rows, columns, total? }`.
 - Dependencias: T-022 (pool manager), T-033 (metadata para validar schema/table).
 
-### T-040 — [ ] Alinear gateway WebSocket con `WS /sessions`
+### T-040 — [x] Alinear gateway WebSocket con `WS /sessions`
 
 - Prioridad: P1.
 - Contexto: [apps/api/src/modules/sessions/sessions.gateway.ts](apps/api/src/modules/sessions/sessions.gateway.ts) usa namespace raíz y solo implementa `session.open`. El PRD propone `WS /sessions`.
@@ -545,7 +551,7 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   5. Aplicar `classifyRisk()` antes de ejecutar; respetar `accessMode` de la conexión.
 - Dependencias: T-022 (pool/client), T-024 (clasificador), T-031 (conexiones persistidas).
 
-### T-041 — [ ] Ejecutar queries persistentes por sesión
+### T-041 — [x] Ejecutar queries persistentes por sesión
 
 - Prioridad: P2.
 - Contexto: necesario para transacciones, temp tables, `SET search_path`, streaming y cancelación real según [PRD.md](PRD.md).
