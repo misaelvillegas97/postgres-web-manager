@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AuditService, AuditEventDto } from './audit.service';
+import { Logger } from '@nestjs/common';
+import { AuditEventDto, AuditService } from './audit.service';
 import { INTERNAL_DB_POOL } from '../../database/database.module';
 import { SqlRiskLevel } from '@postgres-web-manager/contracts';
 
@@ -58,7 +59,8 @@ describe('AuditService', () => {
     });
 
     it('sets sqlPreview to null when not provided', async () => {
-      const { sqlPreview: _, ...eventWithoutSql } = baseEvent;
+      const eventWithoutSql = { ...baseEvent };
+      delete eventWithoutSql.sqlPreview;
       await service.log(eventWithoutSql);
 
       const [, params] = mockDb.query.mock.calls[0] as [string, unknown[]];
@@ -66,8 +68,15 @@ describe('AuditService', () => {
     });
 
     it('does not throw when DB fails (audit must not block main op)', async () => {
+      const errorSpy = jest
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation();
       mockDb.query.mockRejectedValueOnce(new Error('DB down'));
-      await expect(service.log(baseEvent)).resolves.not.toThrow();
+      try {
+        await expect(service.log(baseEvent)).resolves.not.toThrow();
+      } finally {
+        errorSpy.mockRestore();
+      }
     });
 
     it('skips DB insert and logs debug when pool is null', async () => {
@@ -85,9 +94,11 @@ describe('AuditService', () => {
 
   describe('findAll()', () => {
     it('returns rows and total for a given workspace', async () => {
-      const fakeRows = [{ id: '1', action: 'EXECUTE_QUERY', risk_level: SqlRiskLevel.SAFE }];
+      const fakeRows = [
+        { id: '1', action: 'EXECUTE_QUERY', risk_level: SqlRiskLevel.SAFE },
+      ];
       mockDb.query
-        .mockResolvedValueOnce({ rows: fakeRows })          // first query: data
+        .mockResolvedValueOnce({ rows: fakeRows }) // first query: data
         .mockResolvedValueOnce({ rows: [{ total: '3' }] }); // second: count
 
       const result = await service.findAll('ws-001');

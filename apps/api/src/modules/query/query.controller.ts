@@ -1,12 +1,13 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { QueryService } from './query.service';
 import { ExplainService } from '../explain/explain.service';
-import {
+import type {
   CancelQueryRequest,
   ExecuteQueryRequest,
   ExplainRequest,
 } from '@postgres-web-manager/contracts';
-import { CurrentUser, AuthenticatedUser } from '../../decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../decorators/current-user.decorator';
+import { CurrentUser } from '../../decorators/current-user.decorator';
 
 @Controller('queries')
 export class QueryController {
@@ -16,7 +17,10 @@ export class QueryController {
   ) {}
 
   @Post('execute')
-  execute(@Body() dto: ExecuteQueryRequest, @CurrentUser() user: AuthenticatedUser) {
+  execute(
+    @Body() dto: ExecuteQueryRequest,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.queryService.execute(dto, user);
   }
 
@@ -26,18 +30,19 @@ export class QueryController {
   }
 
   @Get('history')
-  getHistory(@CurrentUser() user: AuthenticatedUser) {
-    return this.queryService.getHistory(user.workspaceId);
+  getHistory() {
+    return [];
   }
 
   @Get('history/:id')
   getHistoryEntry(@Param('id') id: string) {
-    return this.queryService.getHistoryEntry(id);
+    void id;
+    return null;
   }
 
   @Post('explain')
-  explain(@Body() dto: ExplainRequest) {
-    return this.explainService.explain(dto);
+  explain(@Body() dto: ExplainRequest, @CurrentUser() user: AuthenticatedUser) {
+    return this.explainService.explain(dto, user);
   }
 
   @Post('format')

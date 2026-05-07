@@ -1,0 +1,56 @@
+replicaCount:
+  api: 1
+  web: 1
+
+image:
+  api:
+    repository: pgstudio/api
+    tag: latest
+    pullPolicy: IfNotPresent
+  web:
+    repository: pgstudio/web
+    tag: latest
+    pullPolicy: IfNotPresent
+
+service:
+  web:
+    type: ClusterIP
+    port: 80
+  api:
+    type: ClusterIP
+    port: 3000
+
+ingress:
+  enabled: false
+  className: ""
+  host: pgstudio.example.com
+  tlsSecretName: ""
+  annotations: { }
+
+config:
+  corsOrigin: https://pgstudio.example.com
+
+secrets:
+  jwtSecret: ""
+  jwtRefreshSecret: ""
+  credentialsEncryptionKey: ""
+  databaseUrl: ""
+
+postgres:
+  enabled: true
+  image:
+    repository: postgres
+    tag: 16-alpine
+  auth:
+    username: pgstudio
+    password: ""
+    database: pgstudio
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: ""
+
+resources:
+  api: { }
+  web: { }
+  postgres: { }

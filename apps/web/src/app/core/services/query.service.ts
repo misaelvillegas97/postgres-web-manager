@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 
 export interface QueryColumn {
@@ -8,11 +8,17 @@ export interface QueryColumn {
 }
 
 export interface QueryResult {
+  queryId?: string;
+  status?: 'success' | 'error' | 'cancelled';
+  statement?: string;
   columns: QueryColumn[];
   rows: unknown[][];
   rowCount: number;
   durationMs: number;
   command?: string;
+  startedAt?: string;
+  endedAt?: string;
+  error?: { message: string; code?: string; detail?: string; hint?: string };
 }
 
 export interface ExecuteQueryDto {
@@ -20,17 +26,6 @@ export interface ExecuteQueryDto {
   sql: string;
   maxRows?: number;
   timeoutMs?: number;
-}
-
-export interface QueryHistoryEntry {
-  id: string;
-  connectionId: string;
-  sql: string;
-  status: 'success' | 'error';
-  rowCount?: number;
-  durationMs?: number;
-  error?: string;
-  startedAt: string;
 }
 
 export interface ExplainDto {
@@ -67,11 +62,9 @@ export class QueryService {
   }
 
   cancel(queryId: string) {
-    return this.http.post<{ cancelled: boolean }>('/api/queries/cancel', { queryId });
-  }
-
-  getHistory(connectionId: string) {
-    return this.http.get<QueryHistoryEntry[]>(`/api/queries/history?connectionId=${connectionId}`);
+    return this.http.post<{ cancelled: boolean }>('/api/queries/cancel', {
+      queryId,
+    });
   }
 
   explain(dto: ExplainDto) {

@@ -6,11 +6,15 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
+import type { Server, Socket } from 'socket.io';
 import type { PoolClient } from 'pg';
-import { SessionOpenPayload, WsMessage } from '@postgres-web-manager/contracts';
+import type {
+  SessionOpenPayload,
+  WsMessage,
+} from '@postgres-web-manager/contracts';
 import { PostgresPoolManager } from '../../postgres/postgres-pool.manager.js';
 import { AuthService } from '../auth/auth.service.js';
+import { SessionRegistryService } from './session-registry.service.js';
 
 const ROWS_BATCH_SIZE = 200;
 
@@ -28,7 +32,9 @@ interface QueryExecutePayload {
 }
 
 @WebSocketGateway({ namespace: '/sessions', cors: { origin: '*' } })
-export class SessionsGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class SessionsGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server!: Server;
 
@@ -38,13 +44,16 @@ export class SessionsGateway implements OnGatewayConnection, OnGatewayDisconnect
   constructor(
     private readonly poolManager: PostgresPoolManager,
     private readonly authService: AuthService,
+    private readonly sessionRegistry: SessionRegistryService,
   ) {}
 
   handleConnection(client: Socket) {
     // Verify JWT from handshake auth token or Authorization header
     const token =
       (client.handshake.auth as Record<string, string>)?.['token'] ??
-      client.handshake.headers['authorization']?.toString().replace('Bearer ', '');
+      client.handshake.headers['authorization']
+        ?.toString()
+        .replace('Bearer ', '');
 
     if (!token) {
       this.logger.warn(`WS rejected (no token): ${client.id}`);
@@ -75,7 +84,18 @@ export class SessionsGateway implements OnGatewayConnection, OnGatewayDisconnect
 
     const pool = this.poolManager.getPool(payload.connectionId);
     if (!pool) {
-      client.emit('session.error', { message: `No active connection for id "${payload.connectionId}"` });
+      client.emit('session.error', {
+        message: `No active connection for id "${payload.connectionId}"`,
+      });
+      return;
+    }
+
+    if (this.sessionRegistry.hasActiveConnection(payload.connectionId)) {
+      client.emit('session.error', {
+        code: 'SESSION_ALREADY_OPEN',
+        message:
+          'This database connection is already open in another browser or device. Close that session before opening it here.',
+      });
       return;
     }
 
@@ -99,6 +119,12 @@ export class SessionsGateway implements OnGatewayConnection, OnGatewayDisconnect
         openedAt: now,
         lastActivityAt: now,
         queryRunning: false,
+      });
+      this.sessionRegistry.register({
+        socketId: client.id,
+        connectionId: payload.connectionId,
+        openedAt: now,
+        lastActivityAt: now,
       });
 
       const response: WsMessage = {
@@ -126,11 +152,15 @@ export class SessionsGateway implements OnGatewayConnection, OnGatewayDisconnect
   async handleQueryExecute(client: Socket, payload: QueryExecutePayload) {
     const session = this.sessions.get(client.id);
     if (!session) {
-      client.emit('query.error', { message: 'No open session. Send session.open first.' });
+      client.emit('query.error', {
+        message: 'No open session. Send session.open first.',
+      });
       return;
     }
     if (session.queryRunning) {
-      client.emit('query.error', { message: 'A query is already running on this session.' });
+      client.emit('query.error', {
+        message: 'A query is already running on this session.',
+      });
       return;
     }
 
@@ -138,7 +168,11 @@ export class SessionsGateway implements OnGatewayConnection, OnGatewayDisconnect
     session.lastActivityAt = new Date().toISOString();
 
     const queryId = `${client.id}-${Date.now()}`;
-    client.emit('query.start', { queryId, sql: payload.sql, startedAt: session.lastActivityAt });
+    client.emit('query.start', {
+      queryId,
+      sql: payload.sql,
+      startedAt: session.lastActivityAt,
+    });
 
     try {
       const startMs = Date.now();
@@ -152,7 +186,9 @@ export class SessionsGateway implements OnGatewayConnection, OnGatewayDisconnect
         dataTypeId: f.dataTypeID,
       }));
 
-      const allRows: unknown[][] = Array.isArray(result.rows) ? result.rows as unknown[][] : [];
+      const allRows: unknown[][] = Array.isArray(result.rows)
+        ? (result.rows as unknown[][])
+        : [];
 
       // Stream rows in batches
       for (let i = 0; i < allRows.length; i += ROWS_BATCH_SIZE) {
@@ -173,7 +209,11 @@ export class SessionsGateway implements OnGatewayConnection, OnGatewayDisconnect
         command: result.command,
       });
     } catch (err) {
-      const pgErr = err as NodeJS.ErrnoException & { code?: string; detail?: string; hint?: string };
+      const pgErr = err as NodeJS.ErrnoException & {
+        code?: string;
+        detail?: string;
+        hint?: string;
+      };
       client.emit('query.error', {
         queryId,
         message: pgErr.message,
@@ -195,24 +235,35 @@ export class SessionsGateway implements OnGatewayConnection, OnGatewayDisconnect
     }
 
     if (!session.queryRunning) {
-      client.emit('query.cancelled', { cancelled: false, reason: 'No query running' });
+      client.emit('query.cancelled', {
+        cancelled: false,
+        reason: 'No query running',
+      });
       return;
     }
 
     // Cancel using a separate connection to avoid blocking the session client
     const pool = this.poolManager.getPool(session.connectionId);
     if (!pool) {
-      client.emit('query.cancelled', { cancelled: false, reason: 'Pool not available' });
+      client.emit('query.cancelled', {
+        cancelled: false,
+        reason: 'Pool not available',
+      });
       return;
     }
 
     let cancelClient: PoolClient | null = null;
     try {
       cancelClient = await pool.connect();
-      await cancelClient.query('SELECT pg_cancel_backend($1)', [session.backendPid]);
+      await cancelClient.query('SELECT pg_cancel_backend($1)', [
+        session.backendPid,
+      ]);
       client.emit('query.cancelled', { cancelled: true });
     } catch (err) {
-      client.emit('query.cancelled', { cancelled: false, reason: (err as Error).message });
+      client.emit('query.cancelled', {
+        cancelled: false,
+        reason: (err as Error).message,
+      });
     } finally {
       cancelClient?.release();
     }
@@ -222,6 +273,7 @@ export class SessionsGateway implements OnGatewayConnection, OnGatewayDisconnect
     const session = this.sessions.get(socketId);
     if (!session) return;
     this.sessions.delete(socketId);
+    this.sessionRegistry.unregister(socketId);
     try {
       session.client.release();
     } catch {

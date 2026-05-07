@@ -5,6 +5,7 @@ import { INTERNAL_DB_POOL } from '../../database/database.module';
 import { CredentialsEncryptionService } from '../../crypto/credentials-encryption.service';
 import { PostgresPoolManager } from '../../postgres/postgres-pool.manager';
 import { CreateConnectionDto } from '@postgres-web-manager/contracts';
+import { SessionRegistryService } from '../sessions/session-registry.service';
 
 const mockRow = {
   id: 'conn-001',
@@ -24,25 +25,50 @@ const mockRow = {
 };
 
 function buildMockPool(overrides: Partial<{ query: jest.Mock }> = {}) {
-  return { query: jest.fn().mockResolvedValue({ rows: [mockRow] }), ...overrides };
+  return {
+    query: jest.fn().mockResolvedValue({ rows: [mockRow] }),
+    ...overrides,
+  };
 }
+
+type MockEncryptionService = jest.Mocked<
+  Pick<CredentialsEncryptionService, 'encrypt' | 'decrypt' | 'isAvailable'>
+>;
+
+type MockPostgresPoolManager = jest.Mocked<
+  Pick<
+    PostgresPoolManager,
+    'hasPool' | 'createPool' | 'destroyPool' | 'getClient' | 'getAccessMode'
+  >
+>;
+type MockSessionRegistry = jest.Mocked<
+  Pick<SessionRegistryService, 'hasActiveConnection'>
+>;
 
 describe('ConnectionsService', () => {
   let service: ConnectionsService;
   let mockDb: { query: jest.Mock };
-  let mockEncryption: jest.Mocked<CredentialsEncryptionService>;
-  let mockPoolManager: jest.Mocked<PostgresPoolManager>;
+  let mockEncryption: MockEncryptionService;
+  let mockPoolManager: MockPostgresPoolManager;
+  let mockSessionRegistry: MockSessionRegistry;
 
   beforeEach(async () => {
     mockDb = buildMockPool();
-    mockEncryption = { encrypt: jest.fn().mockReturnValue('enc-secret'), decrypt: jest.fn() } as unknown as jest.Mocked<CredentialsEncryptionService>;
+    mockEncryption = {
+      encrypt: jest.fn().mockReturnValue('enc-secret'),
+      decrypt: jest.fn(),
+      isAvailable: jest.fn().mockReturnValue(true),
+    };
     mockPoolManager = {
       hasPool: jest.fn().mockReturnValue(false),
-      createPool: jest.fn(),
-      destroyPool: jest.fn(),
+      createPool: jest.fn().mockResolvedValue(undefined),
+      destroyPool: jest.fn().mockResolvedValue(undefined),
       getClient: jest.fn(),
       getAccessMode: jest.fn().mockReturnValue('read-write'),
-    } as unknown as jest.Mocked<PostgresPoolManager>;
+    };
+    mockSessionRegistry = {
+      hasActiveConnection: jest.fn().mockReturnValue(false),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -50,6 +76,7 @@ describe('ConnectionsService', () => {
         { provide: INTERNAL_DB_POOL, useValue: mockDb },
         { provide: CredentialsEncryptionService, useValue: mockEncryption },
         { provide: PostgresPoolManager, useValue: mockPoolManager },
+        { provide: SessionRegistryService, useValue: mockSessionRegistry },
       ],
     }).compile();
 
@@ -64,6 +91,7 @@ describe('ConnectionsService', () => {
           { provide: INTERNAL_DB_POOL, useValue: null },
           { provide: CredentialsEncryptionService, useValue: mockEncryption },
           { provide: PostgresPoolManager, useValue: mockPoolManager },
+          { provide: SessionRegistryService, useValue: mockSessionRegistry },
         ],
       }).compile();
       const svcNoDb = moduleNoDb.get<ConnectionsService>(ConnectionsService);
@@ -94,7 +122,9 @@ describe('ConnectionsService', () => {
   describe('findOne()', () => {
     it('throws NotFoundException when DB has no results', async () => {
       mockDb.query.mockResolvedValueOnce({ rows: [] });
-      await expect(service.findOne('missing-id')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('missing-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('returns mapped profile when found', async () => {
@@ -121,7 +151,10 @@ describe('ConnectionsService', () => {
     });
 
     it('encrypts password when savePassword is true', async () => {
-      await service.create({ ...dto, savePassword: true, password: 'secret' }, 'ws-001');
+      await service.create(
+        { ...dto, savePassword: true, password: 'secret' },
+        'ws-001',
+      );
       expect(mockEncryption.encrypt).toHaveBeenCalledWith('secret');
       const [, params] = mockDb.query.mock.calls[0] as [string, unknown[]];
       expect(params[6]).toBe('enc-secret');
@@ -137,7 +170,9 @@ describe('ConnectionsService', () => {
   describe('remove()', () => {
     it('throws NotFoundException when no rows deleted', async () => {
       mockDb.query.mockResolvedValueOnce({ rowCount: 0, rows: [] });
-      await expect(service.remove('missing-id')).rejects.toThrow(NotFoundException);
+      await expect(service.remove('missing-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('calls destroyPool if pool is active', async () => {
@@ -152,6 +187,136 @@ describe('ConnectionsService', () => {
       mockDb.query.mockResolvedValueOnce({ rowCount: 1, rows: [] });
       await service.remove('conn-001');
       expect(mockPoolManager.destroyPool).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('test()', () => {
+    it('uses an isolated temporary pool id for connection tests', async () => {
+      const release = jest.fn();
+      const client = {
+        query: jest
+          .fn()
+          .mockResolvedValue({ rows: [{ version: 'PostgreSQL test' }] }),
+        release,
+      };
+      mockPoolManager.getClient.mockResolvedValueOnce(client);
+
+      const result = await service.test({
+        host: 'localhost',
+        port: 5432,
+        database: 'postgres',
+        username: 'postgres',
+        password: 'secret',
+      });
+
+      const [poolId] = mockPoolManager.createPool.mock.calls[0];
+      expect(poolId).toMatch(/^__test__:/);
+      expect(poolId).not.toBe('__test__');
+      expect(mockPoolManager.getClient).toHaveBeenCalledWith(poolId);
+      expect(mockPoolManager.destroyPool).toHaveBeenCalledWith(poolId);
+      expect(release).toHaveBeenCalled();
+      expect(result).toMatchObject({
+        success: true,
+        serverVersion: 'PostgreSQL test',
+      });
+    });
+  });
+
+  describe('unlock()', () => {
+    it('verifies the pool before returning unlocked', async () => {
+      const release = jest.fn();
+      const client = {
+        query: jest.fn().mockResolvedValue({ rows: [{ '?column?': 1 }] }),
+        release,
+      };
+      mockPoolManager.getClient.mockResolvedValueOnce(client);
+
+      await expect(
+        service.unlock('conn-001', 'secret', 'ws-001'),
+      ).resolves.toEqual({
+        unlocked: true,
+      });
+
+      expect(mockPoolManager.createPool).toHaveBeenCalledWith(
+        'conn-001',
+        expect.objectContaining({ password: 'secret' }),
+      );
+      expect(mockPoolManager.getClient).toHaveBeenCalledWith('conn-001');
+      expect(client.query).toHaveBeenCalledWith('SELECT 1');
+      expect(release).toHaveBeenCalled();
+    });
+
+    it('rejects unlock when another websocket session already owns the connection', async () => {
+      mockSessionRegistry.hasActiveConnection.mockReturnValueOnce(true);
+
+      await expect(
+        service.unlock('conn-001', 'secret', 'ws-001'),
+      ).rejects.toThrow(
+        'This database connection is already open in another browser or device',
+      );
+      expect(mockPoolManager.createPool).not.toHaveBeenCalled();
+    });
+
+    it('reuses an existing healthy pool when no explicit password is supplied', async () => {
+      const release = jest.fn();
+      const client = {
+        query: jest.fn().mockResolvedValue({ rows: [{ '?column?': 1 }] }),
+        release,
+      };
+      mockPoolManager.hasPool.mockReturnValueOnce(true);
+      mockPoolManager.getClient.mockResolvedValueOnce(client);
+
+      await expect(
+        service.unlock('conn-001', undefined, 'ws-001'),
+      ).resolves.toEqual({
+        unlocked: true,
+      });
+      expect(mockPoolManager.createPool).not.toHaveBeenCalled();
+      expect(client.query).toHaveBeenCalledWith('SELECT 1');
+      expect(release).toHaveBeenCalled();
+    });
+
+    it('clears failed password attempts and disables auto unlock after auth failure', async () => {
+      const authError = Object.assign(
+        new Error('password authentication failed for user "postgres"'),
+        {
+          code: '28P01',
+        },
+      );
+      mockPoolManager.getClient.mockRejectedValueOnce(authError);
+      mockDb.query.mockResolvedValueOnce({
+        rows: [{ ...mockRow, password_encrypted: null, save_password: true }],
+      });
+
+      await expect(
+        service.unlock('conn-001', 'bad-secret', 'ws-001'),
+      ).rejects.toThrow('password authentication failed for user "postgres"');
+      expect(mockPoolManager.destroyPool).toHaveBeenCalledWith('conn-001');
+
+      mockDb.query.mockResolvedValueOnce({
+        rows: [{ ...mockRow, save_password: true }],
+      });
+      mockPoolManager.hasPool.mockReturnValueOnce(false);
+      await expect(service.status('conn-001', 'ws-001')).resolves.toMatchObject(
+        {
+          state: 'locked',
+          canAutoUnlock: false,
+        },
+      );
+
+      mockDb.query.mockResolvedValueOnce({
+        rows: [
+          {
+            ...mockRow,
+            password_encrypted: 'saved-secret',
+            save_password: true,
+          },
+        ],
+      });
+      mockEncryption.decrypt.mockReturnValueOnce('saved-secret');
+      await expect(
+        service.unlock('conn-001', undefined, 'ws-001'),
+      ).rejects.toThrow('Password is required to unlock this connection');
     });
   });
 });

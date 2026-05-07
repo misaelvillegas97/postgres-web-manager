@@ -43,32 +43,34 @@ jobs:
       - run: npm ci
 
       # Format check
-      - run: npx nx format:check --base="remotes/origin/main" || true
+      - run: npm exec nx format:check -- --base="remotes/origin/main"
 
       # Build + lint + test all affected projects
       - name: Lint
-        run: npx nx run-many -t lint --parallel=3
+        run: npm exec nx run-many -- -t lint --parallel=3
 
       - name: Build contracts
-        run: npx nx build @postgres-web-manager/contracts
+        run: npm exec nx build @postgres-web-manager/contracts
 
       - name: Build API
-        run: npx nx build @org/api
+        run: npm exec nx build @org/api
 
       - name: Build Web
-        run: npx nx build web
+        run: npm exec nx build web
 
       - name: Unit tests
-        run: npx nx run-many -t test --parallel=2
+        run: npm exec nx run-many -- -t test --parallel=2
         env:
           DATABASE_URL: postgresql://pgstudio:pgstudio@localhost:5432/pgstudio
-          JWT_SECRET: ci-test-secret-do-not-use-in-prod
-          ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000001
+          JWT_SECRET: ci-test-secret-do-not-use-in-production-0001
+          JWT_REFRESH_SECRET: ci-refresh-secret-do-not-use-in-production-0001
+          CREDENTIALS_ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000001
 
       - name: API e2e tests
-        run: npx nx e2e @org/api-e2e || true
+        run: npm exec nx e2e @org/api-e2e
         env:
           DATABASE_URL: postgresql://pgstudio:pgstudio@localhost:5432/pgstudio
-          JWT_SECRET: ci-test-secret-do-not-use-in-prod
-          ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000001
+          JWT_SECRET: ci-test-secret-do-not-use-in-production-0001
+          JWT_REFRESH_SECRET: ci-refresh-secret-do-not-use-in-production-0001
+          CREDENTIALS_ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000001
 

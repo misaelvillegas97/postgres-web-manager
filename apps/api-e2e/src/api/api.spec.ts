@@ -4,11 +4,33 @@ import axios, { AxiosResponse } from 'axios';
 
 async function login(email = 'admin@pgstudio.local', password = 'dev-password') {
   const res = await axios.post('/api/auth/login', { email, password });
-  return res.data as { accessToken: string; refreshToken: string };
+  return (res.data as { tokens: { accessToken: string; refreshToken: string } }).tokens;
 }
 
 function authHeader(token: string) {
   return { Authorization: `Bearer ${token}` };
+}
+
+async function createConnection(accessToken: string, name: string): Promise<string> {
+  const res = await axios.post(
+    '/api/connections',
+    {
+      name,
+      host: 'localhost',
+      port: 5432,
+      username: 'postgres',
+      database: 'postgres',
+    },
+    { headers: authHeader(accessToken) },
+  );
+  return res.data.id as string;
+}
+
+async function deleteConnection(accessToken: string, connectionId: string | undefined): Promise<void> {
+  if (!connectionId) return;
+  await axios
+    .delete(`/api/connections/${connectionId}`, { headers: authHeader(accessToken) })
+    .catch(() => undefined);
 }
 
 // ─── Authentication ─────────────────────────────────────────────────────────────
@@ -20,8 +42,9 @@ describe('POST /api/auth/login', () => {
       password: 'dev-password',
     });
     expect(res.status).toBe(201);
-    expect(res.data.accessToken).toEqual(expect.any(String));
-    expect(res.data.refreshToken).toEqual(expect.any(String));
+    expect(res.data.user.email).toBe('admin@pgstudio.local');
+    expect(res.data.tokens.accessToken).toEqual(expect.any(String));
+    expect(res.data.tokens.refreshToken).toEqual(expect.any(String));
   });
 
   it('returns 401 for wrong password', async () => {
@@ -125,7 +148,8 @@ describe('Error response shape', () => {
     }
     expect(response?.status).toBe(404);
     expect(response?.data).toMatchObject({
-      statusCode: 404,
+      status: 404,
+      code: expect.any(String),
       message: expect.any(String),
       path: expect.any(String),
       timestamp: expect.any(String),
@@ -137,45 +161,41 @@ describe('Error response shape', () => {
 
 describe('Connections CRUD', () => {
   let accessToken: string;
+  let createdConnectionId: string | undefined;
 
   beforeAll(async () => {
     ({ accessToken } = await login());
   });
 
+  afterAll(async () => {
+    await deleteConnection(accessToken, createdConnectionId);
+  });
+
   it('POST /api/connections creates a connection profile', async () => {
-    let res: AxiosResponse;
-    try {
-      res = await axios.post(
-        '/api/connections',
-        {
-          name: 'E2E Test Connection',
-          host: 'localhost',
-          port: 5432,
-          username: 'postgres',
-          database: 'postgres',
-        },
-        { headers: authHeader(accessToken) },
-      );
-      expect(res.status).toBe(201);
-      expect(res.data.id).toEqual(expect.any(String));
-    } catch (err: unknown) {
-      const resp = (err as { response: AxiosResponse }).response;
-      // If no internal DB configured the API returns 503 or 500 — that's ok,
-      // we just verify the response has error shape.
-      expect([201, 500, 503]).toContain(resp?.status ?? 500);
-    }
+    const res = await axios.post(
+      '/api/connections',
+      {
+        name: 'E2E Test Connection',
+        host: 'localhost',
+        port: 5432,
+        username: 'postgres',
+        database: 'postgres',
+      },
+      { headers: authHeader(accessToken) },
+    );
+
+    expect(res.status).toBe(201);
+    expect(res.data.id).toEqual(expect.any(String));
+    createdConnectionId = res.data.id as string;
   });
 
   it('GET /api/connections returns list', async () => {
-    let res: AxiosResponse;
-    try {
-      res = await axios.get('/api/connections', { headers: authHeader(accessToken) });
-      expect(res.status).toBe(200);
-      expect(Array.isArray(res.data)).toBe(true);
-    } catch (err: unknown) {
-      const resp = (err as { response: AxiosResponse }).response;
-      expect([200, 500, 503]).toContain(resp?.status ?? 500);
-    }
+    const res = await axios.get('/api/connections', { headers: authHeader(accessToken) });
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.data)).toBe(true);
+    expect(
+      (res.data as Array<{ id: string }>).some((connection) => connection.id === createdConnectionId),
+    ).toBe(true);
   });
 
   it('POST /api/connections/:id/test returns 404 for unknown id', async () => {
@@ -197,23 +217,29 @@ describe('Connections CRUD', () => {
 
 describe('POST /api/queries/execute', () => {
   let accessToken: string;
+  let connectionId: string | undefined;
 
   beforeAll(async () => {
     ({ accessToken } = await login());
+    connectionId = await createConnection(accessToken, 'E2E Query Locked Connection');
   });
 
-  it('returns 404 when connectionId not found', async () => {
+  afterAll(async () => {
+    await deleteConnection(accessToken, connectionId);
+  });
+
+  it('returns 422 when no active pool exists for connectionId', async () => {
     let status = 0;
     try {
       await axios.post(
         '/api/queries/execute',
-        { connectionId: '00000000-0000-0000-0000-000000000000', sql: 'SELECT 1' },
+        { connectionId, sql: 'SELECT 1' },
         { headers: authHeader(accessToken) },
       );
     } catch (err: unknown) {
       status = (err as { response: AxiosResponse }).response?.status;
     }
-    expect(status).toBe(404);
+    expect(status).toBe(422);
   });
 });
 
@@ -221,22 +247,28 @@ describe('POST /api/queries/execute', () => {
 
 describe('GET /api/metadata/:id/schemas', () => {
   let accessToken: string;
+  let connectionId: string | undefined;
 
   beforeAll(async () => {
     ({ accessToken } = await login());
+    connectionId = await createConnection(accessToken, 'E2E Metadata Locked Connection');
   });
 
-  it('returns 404 when connectionId not found', async () => {
+  afterAll(async () => {
+    await deleteConnection(accessToken, connectionId);
+  });
+
+  it('returns 422 when no active pool exists for connectionId', async () => {
     let status = 0;
     try {
       await axios.get(
-        '/api/metadata/00000000-0000-0000-0000-000000000000/schemas',
+        `/api/metadata/${connectionId}/schemas`,
         { headers: authHeader(accessToken) },
       );
     } catch (err: unknown) {
       status = (err as { response: AxiosResponse }).response?.status;
     }
-    expect(status).toBe(404);
+    expect(status).toBe(422);
   });
 });
 

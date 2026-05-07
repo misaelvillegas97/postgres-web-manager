@@ -1,0 +1,207 @@
+{
+  "root": "apps/api",
+  "targets": {
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "options": {
+        "cwd": "apps/api",
+        "command": "tsc --build tsconfig.json --emitDeclarationOnly"
+      },
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/package.json",
+        "{workspaceRoot}/tsconfig.base.json",
+        "{projectRoot}/tsconfig.json",
+        "{projectRoot}/tsconfig.app.json",
+        "{projectRoot}/src/**/*.ts",
+        {
+          "dependentTasksOutputFiles": "**/*.{d.ts,d.cts,d.mts,tsbuildinfo}",
+          "transitive": true
+        },
+        {
+          "fileset": "{projectRoot}/**/*.{d.ts,d.cts,d.mts}",
+          "dependencies": true
+        },
+        "^{projectRoot}/tsconfig.lib.json"
+      ],
+      "outputs": [
+        "{projectRoot}/tsconfig.tsbuildinfo",
+        "{projectRoot}/dist/**/*.{d.ts,d.cts,d.mts}",
+        "{projectRoot}/dist/**/*.{d.ts,d.cts,d.mts}.map",
+        "{projectRoot}/dist/tsconfig.app.tsbuildinfo"
+      ],
+      "syncGenerators": ["@nx/js:typescript-sync"],
+      "metadata": {
+        "technologies": ["typescript"],
+        "description": "Runs type-checking for the project.",
+        "help": {
+          "command": "npx tsc --build --help",
+          "example": { "args": ["--force"] }
+        }
+      },
+      "executor": "nx:run-commands",
+      "configurations": {},
+      "parallelism": true
+    },
+    "lint": {
+      "cache": true,
+      "options": { "cwd": "apps/api", "command": "eslint ." },
+      "inputs": [
+        "default",
+        "^default",
+        "{workspaceRoot}/eslint.config.mjs",
+        "{workspaceRoot}/tools/eslint-rules/**/*",
+        { "externalDependencies": ["eslint"] }
+      ],
+      "outputs": ["{options.outputFile}"],
+      "metadata": {
+        "technologies": ["eslint"],
+        "description": "Runs ESLint on project",
+        "help": {
+          "command": "npx eslint --help",
+          "example": { "options": { "max-warnings": 0 } }
+        }
+      },
+      "executor": "nx:run-commands",
+      "configurations": {},
+      "parallelism": true
+    },
+    "build": {
+      "cache": true,
+      "dependsOn": ["^build"],
+      "inputs": [
+        "production",
+        "^production",
+        { "externalDependencies": ["webpack-cli"] }
+      ],
+      "outputs": ["{workspaceRoot}/apps\\api\\dist"],
+      "metadata": {
+        "technologies": ["webpack"],
+        "description": "Runs Webpack build",
+        "help": {
+          "command": "npx webpack-cli build --help",
+          "example": {
+            "options": { "json": "stats.json" },
+            "args": ["--profile"]
+          }
+        }
+      },
+      "syncGenerators": ["@nx/js:typescript-sync"],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/api",
+        "args": ["--node-env=production"],
+        "command": "webpack-cli build"
+      },
+      "configurations": {
+        "development": { "args": ["--node-env=development"] }
+      },
+      "parallelism": true
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "@nx/js:node",
+      "defaultConfiguration": "development",
+      "dependsOn": ["build"],
+      "options": {
+        "buildTarget": "@org/api:build",
+        "runBuildTargetDependencies": false
+      },
+      "configurations": {
+        "development": { "buildTarget": "@org/api:build:development" },
+        "production": { "buildTarget": "@org/api:build:production" }
+      },
+      "parallelism": true
+    },
+    "preview": {
+      "continuous": true,
+      "options": {
+        "cwd": "apps/api",
+        "args": ["--node-env=production"],
+        "command": "webpack-cli serve"
+      },
+      "metadata": {
+        "technologies": ["webpack"],
+        "description": "Starts Webpack dev server in production mode",
+        "help": {
+          "command": "npx webpack-cli serve --help",
+          "example": {
+            "options": {
+              "args": ["--client-progress", "--history-api-fallback "]
+            }
+          }
+        }
+      },
+      "syncGenerators": ["@nx/js:typescript-sync"],
+      "executor": "nx:run-commands",
+      "configurations": {},
+      "parallelism": true
+    },
+    "serve-static": {
+      "continuous": true,
+      "dependsOn": ["build"],
+      "executor": "@nx/web:file-server",
+      "options": { "buildTarget": "build", "spa": true },
+      "syncGenerators": ["@nx/js:typescript-sync"],
+      "configurations": {},
+      "parallelism": true
+    },
+    "build-deps": {
+      "dependsOn": ["^build"],
+      "configurations": {},
+      "options": {},
+      "parallelism": true,
+      "executor": "nx:noop"
+    },
+    "watch-deps": {
+      "continuous": true,
+      "dependsOn": ["build-deps"],
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx nx watch --projects @org/api --includeDependentProjects -- npx nx build-deps @org/api"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "prune-lockfile": {
+      "dependsOn": ["build"],
+      "cache": true,
+      "executor": "@nx/js:prune-lockfile",
+      "outputs": [
+        "{workspaceRoot}/apps/api/dist/package.json",
+        "{workspaceRoot}/apps/api/dist/package-lock.json"
+      ],
+      "options": { "buildTarget": "build" },
+      "configurations": {},
+      "parallelism": true
+    },
+    "copy-workspace-modules": {
+      "dependsOn": ["build"],
+      "cache": true,
+      "outputs": ["{workspaceRoot}/apps/api/dist/workspace_modules"],
+      "executor": "@nx/js:copy-workspace-modules",
+      "options": { "buildTarget": "build" },
+      "configurations": {},
+      "parallelism": true
+    },
+    "prune": {
+      "dependsOn": ["prune-lockfile", "copy-workspace-modules"],
+      "executor": "nx:noop",
+      "configurations": {},
+      "options": {},
+      "parallelism": true
+    }
+  },
+  "projectType": "application",
+  "metadata": {
+    "targetGroups": {},
+    "js": {
+      "packageName": "@org/api",
+      "packageVersion": "0.0.1",
+      "isInPackageManagerWorkspaces": true
+    }
+  },
+  "name": "@org/api",
+  "tags": ["npm:private"],
+  "implicitDependencies": []
+}

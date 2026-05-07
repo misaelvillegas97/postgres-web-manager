@@ -1,6 +1,6 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { io, Socket } from 'socket.io-client';
-import { Subject, filter } from 'rxjs';
+import { filter, Subject } from 'rxjs';
 import { AuthService } from './auth.service';
 
 export interface WsQueryRows {
@@ -15,6 +15,12 @@ export interface WsQueryDone {
   rowCount: number;
   durationMs: number;
   command?: string;
+}
+
+export interface WsQueryStart {
+  queryId: string;
+  sql?: string;
+  startedAt?: string;
 }
 
 export interface WsQueryError {
@@ -37,14 +43,14 @@ export interface WsSessionInfo {
 
 type WsEvent =
   | { type: 'session.open'; payload: WsSessionInfo }
-  | { type: 'query.start'; payload: { queryId: string } }
+  | { type: 'query.start'; payload: WsQueryStart }
   | { type: 'query.rows'; payload: WsQueryRows }
   | { type: 'query.done'; payload: WsQueryDone }
   | { type: 'query.error'; payload: WsQueryError }
   | { type: 'query.notice'; payload: WsQueryNotice }
   | { type: 'query.cancelled'; payload: { cancelled: boolean } }
   | { type: 'session.close'; payload: unknown }
-  | { type: 'session.error'; payload: { message: string } };
+  | { type: 'session.error'; payload: { message: string; code?: string } };
 
 @Injectable({ providedIn: 'root' })
 export class SessionService {
@@ -61,23 +67,24 @@ export class SessionService {
     this.disconnect();
 
     const token = this.authService.getAccessToken();
-    this.socket = io('/sessions', {
+    const socket = io('/sessions', {
       path: '/socket.io',
       transports: ['websocket'],
       auth: { token },
     });
+    this.socket = socket;
 
-    this.socket.on('connect', () => {
+    socket.on('connect', () => {
       this.connected.set(true);
-      this.socket!.emit('session.open', { connectionId, database: '', schema });
+      socket.emit('session.open', { connectionId, database: '', schema });
     });
 
-    this.socket.on('disconnect', () => {
+    socket.on('disconnect', () => {
       this.connected.set(false);
       this.sessionInfo.set(null);
     });
 
-    this.socket.on('session.open', (payload: WsSessionInfo) => {
+    socket.on('session.open', (payload: WsSessionInfo) => {
       this.sessionInfo.set(payload);
       this._events.next({ type: 'session.open', payload });
     });
@@ -93,7 +100,7 @@ export class SessionService {
         'session.error',
       ] as const
     ).forEach((evt) => {
-      this.socket!.on(evt, (payload: unknown) => {
+      socket.on(evt, (payload: unknown) => {
         this._events.next({ type: evt, payload } as WsEvent);
       });
     });

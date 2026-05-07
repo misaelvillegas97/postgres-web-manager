@@ -1,7 +1,7 @@
 version: '3.8'
 
 # Development stack: hot-reload for API, Angular dev server, PostgreSQL
-# Usage: docker-compose -f docker/docker-compose.dev.yml up
+# Usage: docker-compose -f docker/docker-compose.dev.yml up --build
 
 services:
   postgres:
@@ -11,7 +11,7 @@ services:
       POSTGRES_PASSWORD: pgstudio
       POSTGRES_DB: pgstudio
     ports:
-      - '5432:5432'
+      - '46001:5432'
     volumes:
       - pgstudio-dev-data:/var/lib/postgresql/data
     healthcheck:
@@ -25,19 +25,36 @@ services:
       context: ..
       dockerfile: docker/api.dev.Dockerfile
     ports:
-      - '3000:3000'
+      - '46000:46000'
     environment:
       NODE_ENV: development
       DATABASE_URL: postgresql://pgstudio:pgstudio@postgres:5432/pgstudio
       JWT_SECRET: dev-jwt-secret-NOT-FOR-PRODUCTION
-      ENCRYPTION_KEY: '0000000000000000000000000000000000000000000000000000000000000001'
-      PORT: 3000
+      JWT_REFRESH_SECRET: dev-jwt-refresh-secret-NOT-FOR-PRODUCTION
+      CREDENTIALS_ENCRYPTION_KEY: '0000000000000000000000000000000000000000000000000000000000000001'
+      PORT: 46000
+      CORS_ORIGIN: '*'
     volumes:
-      - ../apps/api/src:/app/apps/api/src:ro
-      - ../libs/contracts/src:/app/libs/contracts/src:ro
+      - ../apps/api/src:/app/apps/api/src
+      - ../libs/contracts/src:/app/libs/contracts/src
     depends_on:
       postgres:
         condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ..
+      dockerfile: docker/web.dev.Dockerfile
+    ports:
+      - '46002:46002'
+    environment:
+      PORT: 46002
+    volumes:
+      - ../apps/web/src:/app/apps/web/src
+      - ../libs/contracts/src:/app/libs/contracts/src
+    depends_on:
+      - api
     restart: unless-stopped
 
 volumes:

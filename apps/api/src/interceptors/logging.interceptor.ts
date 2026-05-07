@@ -5,7 +5,7 @@ import {
   Logger,
   NestInterceptor,
 } from '@nestjs/common';
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { v4 as uuidv4 } from 'uuid';
@@ -53,8 +53,7 @@ export class LoggingInterceptor implements NestInterceptor {
               url,
               statusCode,
               durationMs,
-              error:
-                err instanceof Error ? err.message : String(err),
+              error: err instanceof Error ? err.message : String(err),
             }),
           );
         },

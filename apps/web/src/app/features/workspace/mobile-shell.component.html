@@ -1,0 +1,36 @@
+<div class="mobile-shell">
+  <header class="mobile-topbar">
+    <div class="mobile-topbar__brand">
+      <div class="mobile-topbar__icon">
+        <span class="material-symbols-outlined">database</span>
+      </div>
+      <div class="mobile-topbar__copy">
+        <strong>PgStudio Gateway</strong>
+        @if (conn.activeConnection; as active) {
+          <span>{{ active.name }} · {{ active.database }}</span>
+        } @else {
+          <span>No connection</span>
+        }
+      </div>
+    </div>
+    <button (click)="auth.logout()" aria-label="Sign out" class="mobile-topbar__action" type="button">
+      <span class="material-symbols-outlined">logout</span>
+    </button>
+  </header>
+
+  <main class="mobile-shell__content">
+    <router-outlet />
+  </main>
+
+  <nav aria-label="Primary navigation" class="mobile-bottom-nav">
+    <a [routerLinkActiveOptions]="{exact:true}" class="nav-item" routerLink="/workspace"
+       routerLinkActive="nav-item--active">
+      <span class="material-symbols-outlined">code</span>
+      Query
+    </a>
+    <a class="nav-item" routerLink="/connections" routerLinkActive="nav-item--active">
+      <span class="material-symbols-outlined">cable</span>
+      Connections
+    </a>
+  </nav>
+</div>

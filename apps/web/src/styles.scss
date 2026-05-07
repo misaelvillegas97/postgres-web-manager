@@ -1,47 +1,47 @@
-/* ─── CSS Custom Properties ───────────────────────────────────────────────── */
+/* ─── CSS Custom Properties (Stitch / Material You – dark) ──────────────── */
 :root {
-  /* Backgrounds */
-  --bg-base:        #0f1117;
-  --bg-surface:     #1a1d27;
-  --bg-elevated:    #22263a;
-  --bg-hover:       #2a2f45;
-  --bg-active:      #313654;
+  /* Backgrounds – tonal surface ladder */
+  --bg-base: #11131a; /* background */
+  --bg-surface: #1d1f27; /* surface-container */
+  --bg-elevated: #272a31; /* surface-container-high */
+  --bg-hover: #32353c; /* surface-container-highest */
+  --bg-active: #373941; /* surface-bright */
 
   /* Borders */
-  --border:         #2e3347;
-  --border-focus:   #5b6af5;
+  --border: #424753; /* outline-variant */
+  --border-focus: #afc6ff; /* primary */
 
   /* Text */
-  --text-primary:   #e8eaf6;
-  --text-secondary: #8b90b8;
-  --text-muted:     #555d80;
-  --text-inverse:   #0f1117;
+  --text-primary: #e1e2ec; /* on-surface */
+  --text-secondary: #c2c6d6; /* on-surface-variant */
+  --text-muted: #8c909f; /* outline */
+  --text-inverse: #002d6c; /* on-primary */
 
-  /* Accent */
-  --accent:         #5b6af5;
-  --accent-hover:   #4a59e8;
-  --accent-dim:     rgba(91, 106, 245, 0.15);
+  /* Accent – primary */
+  --accent: #afc6ff; /* primary */
+  --accent-hover: #d9e2ff; /* primary-fixed */
+  --accent-dim: rgba(175, 198, 255, 0.12);
 
   /* Status */
   --success:        #4caf7d;
-  --success-dim:    rgba(76, 175, 125, 0.15);
-  --warning:        #f5a623;
-  --warning-dim:    rgba(245, 166, 35, 0.15);
-  --danger:         #e25c5c;
-  --danger-dim:     rgba(226, 92, 92, 0.15);
-  --info:           #5bc8f5;
-  --info-dim:       rgba(91, 200, 245, 0.15);
+  --success-dim: rgba(76, 175, 125, 0.12);
+  --warning: #ffb77b; /* tertiary */
+  --warning-dim: rgba(255, 183, 123, 0.12);
+  --danger: #ffb4ab; /* error */
+  --danger-dim: rgba(255, 180, 171, 0.12);
+  --info: #afc6ff; /* primary */
+  --info-dim: rgba(175, 198, 255, 0.12);
 
   /* Sizing */
-  --topbar-h:       48px;
+  --topbar-h: 64px;
   --sidebar-w:      256px;
   --bottom-panel-h: 260px;
-  --radius:         6px;
-  --radius-sm:      4px;
+  --radius: 4px; /* ROUND_FOUR */
+  --radius-sm: 2px;
 
   /* Typography */
   --font-mono:      'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
-  --font-sans:      -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 /* ─── Reset ───────────────────────────────────────────────────────────────── */
@@ -97,7 +97,7 @@ input, select, textarea {
 
   &--primary {
     background: var(--accent);
-    color: #fff;
+    color: var(--text-inverse);
     &:hover { background: var(--accent-hover); }
     &:disabled { background: var(--bg-active); color: var(--text-muted); cursor: not-allowed; }
   }
@@ -111,7 +111,10 @@ input, select, textarea {
   &--danger {
     background: var(--danger-dim);
     color: var(--danger);
-    &:hover { background: var(--danger); color: #fff; }
+
+    &:hover {
+      background: rgba(255, 180, 171, 0.25);
+    }
   }
 
   &--sm { padding: 3px 8px; font-size: 11px; }
@@ -130,6 +133,11 @@ input, select, textarea {
   &--info    { background: var(--info-dim);     color: var(--info);    }
   &--warning { background: var(--warning-dim);  color: var(--warning); }
   &--muted   { background: var(--bg-active);    color: var(--text-muted); }
+
+  &--neutral {
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+  }
 }
 
 .divider {
@@ -161,5 +169,277 @@ input, select, textarea {
   border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
+}
+
+/* ─── Reconnect Dialog ───────────────────────────────────────────────────── */
+.reconnect-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 250;
+  border: 0;
+  background: rgba(0, 0, 0, .58);
+}
+
+.reconnect-dialog {
+  position: fixed;
+  z-index: 251;
+  top: 50%;
+  left: 50%;
+  width: min(420px, calc(100vw - 32px));
+  transform: translate(-50%, -50%);
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, .35);
+}
+
+.reconnect-dialog__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+
+  h2 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  p {
+    margin: 4px 0 0;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+}
+
+.reconnect-state {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+}
+
+.reconnect-state--active {
+  color: var(--success);
+}
+
+.reconnect-state--locked,
+.reconnect-state--unhealthy {
+  color: var(--warning);
+}
+
+.reconnect-dialog__copy {
+  margin: 16px 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.reconnect-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+
+  span {
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+  }
+}
+
+.reconnect-error {
+  margin: 0 0 12px;
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.reconnect-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+/* ─── Mobile Workspace Shell ──────────────────────────────────────────────── */
+.mobile-workspace-nav,
+.mobile-objects-backdrop,
+.mobile-drawer-header {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .workspace {
+    position: relative;
+    flex-direction: column;
+    background: var(--bg-base);
+  }
+
+  .mobile-workspace-nav {
+    display: flex;
+    gap: 6px;
+    padding: 8px;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    scrollbar-width: thin;
+    flex: 0 0 auto;
+  }
+
+  .mobile-mode-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 78px;
+    height: 40px;
+    padding: 0 12px;
+    border-radius: 8px;
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    flex: 0 0 auto;
+  }
+
+  .mobile-mode-btn small {
+    min-width: 18px;
+    padding: 1px 5px;
+    border-radius: 999px;
+    background: var(--bg-active);
+    color: var(--text-muted);
+    font-size: 10px;
+  }
+
+  .mobile-mode-btn--active {
+    background: var(--accent-dim);
+    color: var(--accent);
+  }
+
+  .mobile-objects-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 240;
+    background: rgba(0, 0, 0, 0.55);
+  }
+
+  .workspace__sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 250;
+    width: min(86vw, 360px);
+    max-width: 100vw;
+    transform: translateX(-100%);
+    transition: transform 0.18s ease;
+    box-shadow: 12px 0 32px rgba(0, 0, 0, 0.35);
+  }
+
+  .workspace--objects-open .workspace__sidebar {
+    transform: translateX(0);
+  }
+
+  .mobile-drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 52px;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 700;
+    flex: 0 0 auto;
+  }
+
+  .mobile-drawer-close {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    color: var(--text-secondary);
+    font-size: 22px;
+    line-height: 1;
+  }
+
+  .mobile-drawer-close:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .workspace__main {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .view-switcher {
+    display: none;
+  }
+
+  .editor-pane {
+    flex: 1;
+    height: auto;
+    min-height: 0;
+    border-bottom: 0;
+  }
+
+  .workspace--mobile-results .editor-pane {
+    display: none;
+  }
+
+  .workspace--mobile-editor .result-pane {
+    display: none;
+  }
+
+  .result-pane {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .result-pane__tabs {
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .tab-btn {
+    min-height: 40px;
+    flex: 0 0 auto;
+  }
+
+  .editor-pane__toolbar {
+    gap: 8px;
+    align-items: stretch;
+    padding: 8px;
+  }
+
+  .editor-pane__label {
+    display: none;
+  }
+
+  .editor-pane__actions {
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .editor-pane__actions .btn {
+    min-height: 38px;
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .tb-host {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .history-item {
+    min-height: 54px;
+  }
 }
 

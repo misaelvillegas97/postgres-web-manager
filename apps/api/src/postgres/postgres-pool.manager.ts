@@ -18,51 +18,74 @@ export class PostgresPoolManager implements OnModuleDestroy {
   private readonly logger = new Logger(PostgresPoolManager.name);
   private readonly pools = new Map<string, Pool>();
   private readonly accessModes = new Map<string, 'read-only' | 'read-write'>();
+  private readonly poolOperations = new Map<string, Promise<unknown>>();
 
-  getPool(connectionId: string): Pool {
-    const pool = this.pools.get(connectionId);
-    if (!pool) {
-      throw new Error(`No pool found for connection ID: ${connectionId}`);
-    }
-    return pool;
+  getPool(connectionId: string): Pool | undefined {
+    return this.pools.get(connectionId);
+  }
+
+  getPoolStats(
+    connectionId: string,
+  ):
+    | { totalCount: number; idleCount: number; waitingCount: number }
+    | undefined {
+    const pool = this.getPool(connectionId);
+    if (!pool) return undefined;
+    return {
+      totalCount: pool.totalCount,
+      idleCount: pool.idleCount,
+      waitingCount: pool.waitingCount,
+    };
   }
 
   async getClient(connectionId: string): Promise<PoolClient> {
     const pool = this.getPool(connectionId);
+    if (!pool) {
+      throw new Error(`No pool found for connection ID: ${connectionId}`);
+    }
     return pool.connect();
   }
 
-  async createPool(connectionId: string, config: PoolConnectionConfig): Promise<void> {
-    if (this.pools.has(connectionId)) {
-      await this.destroyPool(connectionId);
-    }
+  async createPool(
+    connectionId: string,
+    config: PoolConnectionConfig,
+  ): Promise<void> {
+    await this.runPoolOperation(connectionId, async () => {
+      await this.destroyPoolNow(connectionId);
 
-    const ssl = this.resolveSsl(config.sslMode);
-    const poolConfig: PoolConfig = {
-      host: config.host,
-      port: config.port,
-      database: config.database,
-      user: config.username,
-      password: config.password,
-      ssl,
-      statement_timeout: config.statementTimeoutMs ?? 30000,
-      max: 10,
-      idleTimeoutMillis: 60000,
-      connectionTimeoutMillis: 10000,
-    };
+      const ssl = this.resolveSsl(config.sslMode);
+      const poolConfig: PoolConfig = {
+        host: config.host,
+        port: config.port,
+        database: config.database,
+        user: config.username,
+        password: config.password,
+        ssl,
+        statement_timeout: config.statementTimeoutMs ?? 30000,
+        max: 10,
+        idleTimeoutMillis: 60000,
+        connectionTimeoutMillis: 10000,
+      };
 
-    const pool = new Pool(poolConfig);
-    this.pools.set(connectionId, pool);
-    this.accessModes.set(connectionId, config.accessMode ?? 'read-write');
-    this.logger.log(`Pool created for connection: ${connectionId}`);
+      const pool = new Pool(poolConfig);
+      this.pools.set(connectionId, pool);
+      this.accessModes.set(connectionId, config.accessMode ?? 'read-write');
+      this.logger.log(`Pool created for connection: ${connectionId}`);
+    });
   }
 
   async destroyPool(connectionId: string): Promise<void> {
+    await this.runPoolOperation(connectionId, () =>
+      this.destroyPoolNow(connectionId),
+    );
+  }
+
+  private async destroyPoolNow(connectionId: string): Promise<void> {
     const pool = this.pools.get(connectionId);
     if (pool) {
-      await pool.end();
       this.pools.delete(connectionId);
       this.accessModes.delete(connectionId);
+      await pool.end();
       this.logger.log(`Pool destroyed for connection: ${connectionId}`);
     }
   }
@@ -78,6 +101,24 @@ export class PostgresPoolManager implements OnModuleDestroy {
   async onModuleDestroy(): Promise<void> {
     const ids = Array.from(this.pools.keys());
     await Promise.all(ids.map((id) => this.destroyPool(id)));
+  }
+
+  private runPoolOperation<T>(
+    connectionId: string,
+    operation: () => Promise<T> | T,
+  ): Promise<T> {
+    const previous = this.poolOperations.get(connectionId) ?? Promise.resolve();
+    const current = (async () => {
+      await previous.catch(() => undefined);
+      return operation();
+    })();
+    const cleanup = current.finally(() => {
+      if (this.poolOperations.get(connectionId) === cleanup) {
+        this.poolOperations.delete(connectionId);
+      }
+    });
+    this.poolOperations.set(connectionId, cleanup);
+    return current;
   }
 
   private resolveSsl(

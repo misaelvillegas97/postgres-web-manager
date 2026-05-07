@@ -1,0 +1,64 @@
+<div class="login-root">
+  <!-- Brand bar -->
+  <a class="login-brand" routerLink="/">PgStudio Gateway</a>
+
+  <div class="login-card">
+    <div class="login-card__header">
+      <h1 class="login-card__title">Sign in</h1>
+      <p class="login-card__sub">Continue to PgStudio Gateway</p>
+    </div>
+
+    <form #f="ngForm" (ngSubmit)="submit()" novalidate>
+      <div class="field">
+        <label for="email">Email</label>
+        <input
+          [(ngModel)]="email"
+          autocomplete="username"
+          id="email"
+          name="email"
+          placeholder="you@example.com"
+          required
+          type="email"
+        />
+      </div>
+
+      <div class="field">
+        <label for="password">Password</label>
+        <input
+          [(ngModel)]="password"
+          autocomplete="current-password"
+          id="password"
+          name="password"
+          placeholder="••••••••"
+          required
+          type="password"
+        />
+      </div>
+
+      @if (error()) {
+        <div class="login-error" role="alert">
+          <span class="material-symbols-outlined">error</span>
+          {{ error() }}
+        </div>
+      }
+
+      <button
+        [disabled]="loading()"
+        class="login-btn"
+        type="submit"
+      >
+        @if (loading()) {
+          <span class="spinner"></span>
+          Signing in…
+        } @else {
+          Sign in
+        }
+      </button>
+    </form>
+
+    <p class="login-hint">
+      <span class="material-symbols-outlined">info</span>
+      Dev: <code>admin&#64;pgstudio.local</code> / <code>dev-password</code>
+    </p>
+  </div>
+</div>

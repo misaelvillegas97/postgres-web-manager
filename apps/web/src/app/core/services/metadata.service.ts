@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 
 export interface SchemaInfo {
@@ -9,7 +9,7 @@ export interface SchemaInfo {
 export interface TableInfo {
   schema: string;
   name: string;
-  type: 'BASE TABLE' | 'VIEW' | 'MATERIALIZED VIEW';
+  type: 'table' | 'view' | 'materialized_view';
   rowEstimate?: number;
   comment?: string;
 }
@@ -66,7 +66,14 @@ export interface FunctionInfo {
 
 export interface MetadataTreeNode {
   label: string;
-  type: 'schema' | 'table' | 'view' | 'matview' | 'column' | 'function' | 'group';
+  type:
+    | 'schema'
+    | 'table'
+    | 'view'
+    | 'matview'
+    | 'column'
+    | 'function'
+    | 'group';
   icon?: string;
   children?: MetadataTreeNode[];
   data?: unknown;
@@ -83,18 +90,20 @@ export class MetadataService {
   }
 
   getTables(connectionId: string, schema: string) {
-    return this.http.get<TableInfo[]>(`/api/metadata/${connectionId}/tables?schema=${encodeURIComponent(schema)}`);
+    return this.http.get<TableInfo[]>(
+      `/api/metadata/${connectionId}/schemas/${encodeURIComponent(schema)}/tables`,
+    );
   }
 
   getTableDetail(connectionId: string, schema: string, table: string) {
     return this.http.get<TableDetail>(
-      `/api/metadata/${connectionId}/tables/${encodeURIComponent(table)}?schema=${encodeURIComponent(schema)}`,
+      `/api/metadata/${connectionId}/schemas/${encodeURIComponent(schema)}/tables/${encodeURIComponent(table)}`,
     );
   }
 
   getFunctions(connectionId: string, schema: string) {
     return this.http.get<FunctionInfo[]>(
-      `/api/metadata/${connectionId}/functions?schema=${encodeURIComponent(schema)}`,
+      `/api/metadata/${connectionId}/schemas/${encodeURIComponent(schema)}/functions`,
     );
   }
 }

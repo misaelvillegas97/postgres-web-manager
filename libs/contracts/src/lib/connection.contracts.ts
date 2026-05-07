@@ -18,6 +18,7 @@ export interface ConnectionProfile {
   accessMode: 'read-only' | 'read-write' | 'admin';
   statementTimeoutMs: number;
   maxRows: number;
+  savePassword: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -51,4 +52,18 @@ export interface TestConnectionResult {
   serverVersion?: string;
   latencyMs?: number;
   error?: string;
+}
+
+export interface ConnectionStatus {
+  connectionId: string;
+  state: 'active' | 'locked' | 'unhealthy';
+  active: boolean;
+  canAutoUnlock: boolean;
+  checkedAt: string;
+  message?: string;
+  pool?: {
+    totalCount: number;
+    idleCount: number;
+    waitingCount: number;
+  };
 }

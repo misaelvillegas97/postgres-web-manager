@@ -1,0 +1,18 @@
+{
+  "buildCommand": "npm ci && npm exec nx build web -- --configuration=production",
+  "outputDirectory": "dist/apps/web/browser",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://YOUR_API_HOST.example.com/api/$1"
+    },
+    {
+      "source": "/socket.io/(.*)",
+      "destination": "https://YOUR_API_HOST.example.com/socket.io/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

@@ -3,11 +3,12 @@ import { QueryController } from './query.controller';
 import { QueryService } from './query.service';
 import { ExplainModule } from '../explain/explain.module';
 import { AuditModule } from '../audit/audit.module';
+import { ConnectionsModule } from '../connections/connections.module';
 
 // DatabaseModule and CryptoModule (which exports PostgresPoolManager) are global.
 
 @Module({
-  imports: [ExplainModule, AuditModule],
+  imports: [ExplainModule, AuditModule, ConnectionsModule],
   controllers: [QueryController],
   providers: [QueryService],
   exports: [QueryService],

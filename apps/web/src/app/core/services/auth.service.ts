@@ -1,17 +1,25 @@
-import { Injectable, inject, signal, computed } from '@angular/core';
+import { computed, inject, Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { tap, catchError, throwError } from 'rxjs';
+import { catchError, EMPTY, tap, throwError } from 'rxjs';
 
 export interface UserProfile {
   id: string;
   email: string;
+  name?: string;
   role: string;
+  workspaceId?: string;
 }
 
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
+  expiresIn?: number;
+}
+
+export interface AuthResponse {
+  user: UserProfile;
+  tokens: AuthTokens;
 }
 
 const ACCESS_TOKEN_KEY = 'pgstudio_at';
@@ -41,30 +49,37 @@ export class AuthService {
   }
 
   login(email: string, password: string) {
-    return this.http.post<AuthTokens>('/api/auth/login', { email, password }).pipe(
-      tap((tokens) => {
-        this.storeTokens(tokens);
-        this.loadProfile();
-      }),
-    );
+    return this.http
+      .post<AuthResponse>('/api/auth/login', { email, password })
+      .pipe(
+        tap((response) => {
+          this.storeTokens(response.tokens);
+          this._user.set(response.user);
+        }),
+      );
   }
 
   refresh() {
     const refreshToken = sessionStorage.getItem(REFRESH_TOKEN_KEY);
     if (!refreshToken) return throwError(() => new Error('No refresh token'));
-    return this.http.post<AuthTokens>('/api/auth/refresh', { refreshToken }).pipe(
-      tap((tokens) => this.storeTokens(tokens)),
-      catchError((err) => {
-        this.logout();
-        return throwError(() => err);
-      }),
-    );
+    return this.http
+      .post<AuthTokens>('/api/auth/refresh', { refreshToken })
+      .pipe(
+        tap((tokens) => this.storeTokens(tokens)),
+        catchError((err) => {
+          this.logout();
+          return throwError(() => err);
+        }),
+      );
   }
 
   logout() {
     const refreshToken = sessionStorage.getItem(REFRESH_TOKEN_KEY);
     if (refreshToken) {
-      this.http.post('/api/auth/logout', { refreshToken }).subscribe({ error: () => {} });
+      this.http
+        .post('/api/auth/logout', { refreshToken })
+        .pipe(catchError(() => EMPTY))
+        .subscribe();
     }
     this.clearTokens();
     this._user.set(null);

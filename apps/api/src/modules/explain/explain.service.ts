@@ -1,23 +1,32 @@
+import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 import {
-  Injectable,
-  UnprocessableEntityException,
-} from '@nestjs/common';
-import {
-  ExplainPlanNode,
-  ExplainRequest,
-  ExplainResponse,
+  type ExplainPlanNode,
+  type ExplainRequest,
+  type ExplainResponse,
+  SqlRiskLevel,
 } from '@postgres-web-manager/contracts';
 import { v4 as uuidv4 } from 'uuid';
 import { PostgresPoolManager } from '../../postgres/postgres-pool.manager';
 import { classifyRisk } from '../query/sql-risk.classifier';
-import { SqlRiskLevel } from '@postgres-web-manager/contracts';
+import { ConnectionsService } from '../connections/connections.service';
+import type { AuthenticatedUser } from '../../decorators/current-user.decorator';
 
 @Injectable()
 export class ExplainService {
-  constructor(private readonly poolManager: PostgresPoolManager) {}
+  constructor(
+    private readonly poolManager: PostgresPoolManager,
+    private readonly connectionsService: ConnectionsService,
+  ) {}
 
-  async explain(dto: ExplainRequest): Promise<ExplainResponse> {
+  async explain(
+    dto: ExplainRequest,
+    user?: AuthenticatedUser,
+  ): Promise<ExplainResponse> {
     const risk = classifyRisk(dto.sql);
+
+    if (!dto.sql.trim()) {
+      throw new UnprocessableEntityException('SQL statement cannot be empty');
+    }
 
     // EXPLAIN ANALYZE on destructive/DDL statements is dangerous — block it
     if (dto.analyze && risk !== SqlRiskLevel.SAFE) {
@@ -26,6 +35,8 @@ export class ExplainService {
           `Use analyze: false or wrap in a transaction with manual rollback.`,
       );
     }
+
+    await this.ensureConnectionAccess(dto.connectionId, user?.workspaceId);
 
     if (!this.poolManager.hasPool(dto.connectionId)) {
       throw new UnprocessableEntityException(
@@ -41,9 +52,7 @@ export class ExplainService {
       if (dto.buffers) options.push('BUFFERS');
 
       const explainSql = `EXPLAIN (${options.join(', ')}) ${dto.sql}`;
-      const start = Date.now();
       const result = await client.query(explainSql);
-      const durationMs = Date.now() - start;
 
       // PostgreSQL EXPLAIN JSON returns [{QUERY PLAN: [...]}]
       const raw = result.rows[0]?.['QUERY PLAN'] as unknown[];
@@ -51,8 +60,12 @@ export class ExplainService {
 
       const plan = this.parsePlanNode(planJson as Record<string, unknown>);
 
-      const planningTimeMs = (planJson as Record<string, number>)?.['Planning Time'];
-      const executionTimeMs = (planJson as Record<string, number>)?.['Execution Time'];
+      const planningTimeMs = (planJson as Record<string, number>)?.[
+        'Planning Time'
+      ];
+      const executionTimeMs = (planJson as Record<string, number>)?.[
+        'Execution Time'
+      ];
       const totalCost = plan.totalCost;
 
       return {
@@ -70,14 +83,14 @@ export class ExplainService {
   }
 
   private parsePlanNode(node: Record<string, unknown>): ExplainPlanNode {
-    const plan = node['Plan'] as Record<string, unknown> | undefined ?? node;
+    const plan = (node['Plan'] as Record<string, unknown> | undefined) ?? node;
 
-    const children = (plan['Plans'] as Record<string, unknown>[] | undefined)?.map((child) =>
-      this.parsePlanNode(child),
-    );
+    const children = (
+      plan['Plans'] as Record<string, unknown>[] | undefined
+    )?.map((child) => this.parsePlanNode(child));
 
     return {
-      nodeType: plan['Node Type'] as string ?? 'Unknown',
+      nodeType: (plan['Node Type'] as string) ?? 'Unknown',
       relation: plan['Relation Name'] as string | undefined,
       schema: plan['Schema'] as string | undefined,
       alias: plan['Alias'] as string | undefined,
@@ -96,16 +109,38 @@ export class ExplainService {
     };
   }
 
-  private extractExtra(plan: Record<string, unknown>): Record<string, unknown> | undefined {
+  private extractExtra(
+    plan: Record<string, unknown>,
+  ): Record<string, unknown> | undefined {
     const knownKeys = new Set([
-      'Node Type', 'Relation Name', 'Schema', 'Alias', 'Startup Cost', 'Total Cost',
-      'Plan Rows', 'Plan Width', 'Actual Startup Time', 'Actual Total Time',
-      'Actual Rows', 'Actual Loops', 'Shared Hit Blocks', 'Shared Read Blocks', 'Plans',
+      'Node Type',
+      'Relation Name',
+      'Schema',
+      'Alias',
+      'Startup Cost',
+      'Total Cost',
+      'Plan Rows',
+      'Plan Width',
+      'Actual Startup Time',
+      'Actual Total Time',
+      'Actual Rows',
+      'Actual Loops',
+      'Shared Hit Blocks',
+      'Shared Read Blocks',
+      'Plans',
     ]);
     const extra: Record<string, unknown> = {};
     for (const [key, val] of Object.entries(plan)) {
       if (!knownKeys.has(key)) extra[key] = val;
     }
     return Object.keys(extra).length > 0 ? extra : undefined;
+  }
+
+  private async ensureConnectionAccess(
+    connectionId: string,
+    workspaceId?: string,
+  ): Promise<void> {
+    if (!workspaceId) return;
+    await this.connectionsService.findOne(connectionId, workspaceId);
   }
 }

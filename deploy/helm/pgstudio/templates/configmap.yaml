@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: { { include "pgstudio.fullname" . } }-config
+  labels:
+    {{- include "pgstudio.labels" . | nindent 4 }}
+data:
+  NODE_ENV: production
+  API_PROXY_URL: http://{{ include "pgstudio.fullname" . }}-api:{{ .Values.service.api.port }}
+  CORS_ORIGIN: { { required "config.corsOrigin is required" .Values.config.corsOrigin | quote } }

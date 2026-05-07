@@ -1,4 +1,7 @@
+import { randomUUID } from 'crypto';
 import {
+  BadRequestException,
+  ConflictException,
   Inject,
   Injectable,
   Logger,
@@ -7,6 +10,7 @@ import {
 import { Pool } from 'pg';
 import {
   ConnectionProfile,
+  ConnectionStatus,
   CreateConnectionDto,
   TestConnectionDto,
   TestConnectionResult,
@@ -14,6 +18,7 @@ import {
 import { INTERNAL_DB_POOL } from '../../database/database.module';
 import { CredentialsEncryptionService } from '../../crypto/credentials-encryption.service';
 import { PostgresPoolManager } from '../../postgres/postgres-pool.manager';
+import { SessionRegistryService } from '../sessions/session-registry.service';
 
 type DbRow = Record<string, unknown>;
 
@@ -22,11 +27,13 @@ export class ConnectionsService {
   private readonly logger = new Logger(ConnectionsService.name);
   // Temporary in-memory password store for unlocked connections (session-scoped)
   private readonly unlockedPasswords = new Map<string, string>();
+  private readonly invalidAutoUnlocks = new Set<string>();
 
   constructor(
     @Inject(INTERNAL_DB_POOL) private readonly db: Pool | null,
     private readonly encryption: CredentialsEncryptionService,
     private readonly poolManager: PostgresPoolManager,
+    private readonly sessionRegistry: SessionRegistryService,
   ) {}
 
   async findAll(workspaceId?: string): Promise<ConnectionProfile[]> {
@@ -53,12 +60,17 @@ export class ConnectionsService {
        WHERE id = $1 AND ($2::uuid IS NULL OR workspace_id = $2)`,
       [id, workspaceId ?? null],
     );
-    if (rows.length === 0) throw new NotFoundException(`Connection ${id} not found`);
+    if (rows.length === 0)
+      throw new NotFoundException(`Connection ${id} not found`);
     return this.toProfile(rows[0]);
   }
 
-  async create(dto: CreateConnectionDto, workspaceId?: string): Promise<ConnectionProfile> {
+  async create(
+    dto: CreateConnectionDto,
+    workspaceId?: string,
+  ): Promise<ConnectionProfile> {
     if (!this.db) throw new Error('Internal database not configured');
+    const scopedWorkspaceId = this.requireWorkspaceId(workspaceId);
 
     let passwordEncrypted: string | null = null;
     if (dto.savePassword && dto.password) {
@@ -74,7 +86,7 @@ export class ConnectionsService {
                  ssl_mode, access_mode, max_rows, statement_timeout_ms,
                  save_password, created_at, updated_at`,
       [
-        workspaceId ?? null,
+        scopedWorkspaceId,
         dto.name,
         dto.host,
         dto.port ?? 5432,
@@ -89,12 +101,19 @@ export class ConnectionsService {
       ],
     );
 
-    this.logger.log(`Connection created: ${dto.name} (${dto.host}) workspace=${workspaceId}`);
+    this.logger.log(
+      `Connection created: ${dto.name} (${dto.host}) workspace=${scopedWorkspaceId}`,
+    );
     return this.toProfile(rows[0]);
   }
 
-  async update(id: string, dto: Partial<CreateConnectionDto>): Promise<ConnectionProfile> {
+  async update(
+    id: string,
+    dto: Partial<CreateConnectionDto>,
+    workspaceId?: string,
+  ): Promise<ConnectionProfile> {
     if (!this.db) throw new Error('Internal database not configured');
+    const scopedWorkspaceId = this.requireWorkspaceId(workspaceId);
 
     // Build dynamic SET clause from provided fields
     const updates: string[] = [];
@@ -131,21 +150,23 @@ export class ConnectionsService {
       }
     }
 
-    if (updates.length === 0) return this.findOne(id);
+    if (updates.length === 0) return this.findOne(id, scopedWorkspaceId);
 
     updates.push(`updated_at = NOW()`);
     values.push(id);
+    values.push(scopedWorkspaceId);
 
     const { rows } = await this.db.query<DbRow>(
       `UPDATE connection_profiles SET ${updates.join(', ')}
-       WHERE id = $${idx}
+       WHERE id = $${idx} AND workspace_id = $${idx + 1}
        RETURNING id, workspace_id, name, host, port, database, username,
                  ssl_mode, access_mode, max_rows, statement_timeout_ms,
                  save_password, created_at, updated_at`,
       values,
     );
 
-    if (rows.length === 0) throw new NotFoundException(`Connection ${id} not found`);
+    if (rows.length === 0)
+      throw new NotFoundException(`Connection ${id} not found`);
     return this.toProfile(rows[0]);
   }
 
@@ -155,7 +176,8 @@ export class ConnectionsService {
       'DELETE FROM connection_profiles WHERE id = $1 AND ($2::uuid IS NULL OR workspace_id = $2)',
       [id, workspaceId ?? null],
     );
-    if (rowCount === 0) throw new NotFoundException(`Connection ${id} not found`);
+    if (rowCount === 0)
+      throw new NotFoundException(`Connection ${id} not found`);
 
     // Clean up pool if it exists
     if (this.poolManager.hasPool(id)) {
@@ -166,8 +188,9 @@ export class ConnectionsService {
 
   async test(dto: TestConnectionDto): Promise<TestConnectionResult> {
     const start = Date.now();
+    const testPoolId = `__test__:${randomUUID()}`;
     try {
-      await this.poolManager.createPool('__test__', {
+      await this.poolManager.createPool(testPoolId, {
         host: dto.host,
         port: dto.port,
         database: dto.database,
@@ -177,7 +200,7 @@ export class ConnectionsService {
         statementTimeoutMs: 5000,
       });
 
-      const client = await this.poolManager.getClient('__test__');
+      const client = await this.poolManager.getClient(testPoolId);
       let serverVersion: string | undefined;
       try {
         const result = await client.query('SELECT version()');
@@ -186,7 +209,7 @@ export class ConnectionsService {
         client.release();
       }
 
-      await this.poolManager.destroyPool('__test__');
+      await this.poolManager.destroyPool(testPoolId);
 
       return {
         success: true,
@@ -194,7 +217,7 @@ export class ConnectionsService {
         latencyMs: Date.now() - start,
       };
     } catch (err) {
-      await this.poolManager.destroyPool('__test__').catch(() => undefined);
+      await this.poolManager.destroyPool(testPoolId).catch(() => undefined);
       return {
         success: false,
         latencyMs: Date.now() - start,
@@ -203,27 +226,124 @@ export class ConnectionsService {
     }
   }
 
-  async unlock(id: string, password: string): Promise<{ unlocked: boolean }> {
-    // Verify the connection exists
-    await this.findOne(id);
+  async status(id: string, workspaceId?: string): Promise<ConnectionStatus> {
+    const profile = await this.findOne(id, workspaceId);
+    const checkedAt = new Date().toISOString();
 
-    // Store password temporarily for this session
-    this.unlockedPasswords.set(id, password);
+    if (!this.poolManager.hasPool(id)) {
+      return {
+        connectionId: id,
+        state: 'locked',
+        active: false,
+        canAutoUnlock: this.canAutoUnlock(id, profile),
+        checkedAt,
+        message: 'Connection is not unlocked in this gateway process.',
+      };
+    }
 
-    // Pre-warm the pool with the provided credentials so queries can proceed
-    const profile = await this.findOneWithPassword(id);
-    await this.poolManager.createPool(id, {
-      host: profile.host,
-      port: profile.port,
-      database: profile.database,
-      username: profile.username,
-      password,
-      sslMode: profile.sslMode as Parameters<typeof this.poolManager.createPool>[1]['sslMode'],
-      statementTimeoutMs: profile.statementTimeoutMs,
-      maxRows: profile.maxRows,
-      accessMode: profile.accessMode as 'read-only' | 'read-write',
-    });
+    let client;
+    try {
+      client = await this.poolManager.getClient(id);
+      await client.query('SELECT 1');
+      return {
+        connectionId: id,
+        state: 'active',
+        active: true,
+        canAutoUnlock: this.canAutoUnlock(id, profile),
+        checkedAt,
+        pool: this.poolManager.getPoolStats(id),
+      };
+    } catch (err) {
+      if (this.isPasswordAuthenticationError(err)) {
+        this.unlockedPasswords.delete(id);
+        this.invalidAutoUnlocks.add(id);
+        await this.poolManager.destroyPool(id).catch(() => undefined);
+      }
 
+      return {
+        connectionId: id,
+        state: 'unhealthy',
+        active: false,
+        canAutoUnlock: this.canAutoUnlock(id, profile),
+        checkedAt,
+        message: err instanceof Error ? err.message : String(err),
+        pool: this.poolManager.getPoolStats(id),
+      };
+    } finally {
+      client?.release();
+    }
+  }
+
+  async unlock(
+    id: string,
+    password?: string,
+    workspaceId?: string,
+  ): Promise<{ unlocked: boolean }> {
+    const profile = await this.findOneWithPassword(id, workspaceId);
+    const memoryPassword = this.unlockedPasswords.get(id);
+    const savedPassword =
+      profile.password && !this.invalidAutoUnlocks.has(id)
+        ? profile.password
+        : undefined;
+    const resolvedPassword = password ?? memoryPassword ?? savedPassword;
+
+    if (this.sessionRegistry.hasActiveConnection(id)) {
+      throw new ConflictException(
+        'This database connection is already open in another browser or device. Close that session before opening it here.',
+      );
+    }
+
+    if (this.poolManager.hasPool(id) && password === undefined) {
+      try {
+        await this.verifyPool(id);
+        this.invalidAutoUnlocks.delete(id);
+        return { unlocked: true };
+      } catch (err) {
+        this.unlockedPasswords.delete(id);
+        if (this.isPasswordAuthenticationError(err)) {
+          this.invalidAutoUnlocks.add(id);
+        }
+        await this.poolManager.destroyPool(id).catch(() => undefined);
+        throw new BadRequestException(
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+    }
+
+    if (resolvedPassword === undefined) {
+      throw new BadRequestException(
+        'Password is required to unlock this connection',
+      );
+    }
+
+    try {
+      await this.poolManager.createPool(id, {
+        host: profile.host,
+        port: profile.port,
+        database: profile.database,
+        username: profile.username,
+        password: resolvedPassword,
+        sslMode: profile.sslMode as Parameters<
+          typeof this.poolManager.createPool
+        >[1]['sslMode'],
+        statementTimeoutMs: profile.statementTimeoutMs,
+        maxRows: profile.maxRows,
+        accessMode: profile.accessMode as 'read-only' | 'read-write',
+      });
+      await this.verifyPool(id);
+    } catch (err) {
+      this.unlockedPasswords.delete(id);
+      if (this.isPasswordAuthenticationError(err)) {
+        this.invalidAutoUnlocks.add(id);
+      }
+      await this.poolManager.destroyPool(id).catch(() => undefined);
+      throw new BadRequestException(
+        err instanceof Error ? err.message : String(err),
+      );
+    }
+
+    this.invalidAutoUnlocks.delete(id);
+    this.unlockedPasswords.set(id, resolvedPassword);
     this.logger.log(`Connection ${id} unlocked and pool created`);
     return { unlocked: true };
   }
@@ -236,27 +356,68 @@ export class ConnectionsService {
     return undefined;
   }
 
-  private async findOneWithPassword(id: string): Promise<ConnectionProfile & { password?: string }> {
+  private async findOneWithPassword(
+    id: string,
+    workspaceId?: string,
+  ): Promise<ConnectionProfile & { password?: string }> {
     if (!this.db) throw new NotFoundException(`Connection ${id} not found`);
     const { rows } = await this.db.query<DbRow>(
       `SELECT id, workspace_id, name, host, port, database, username,
               password_encrypted, ssl_mode, access_mode, max_rows,
               statement_timeout_ms, save_password, created_at, updated_at
-       FROM connection_profiles WHERE id = $1`,
-      [id],
+       FROM connection_profiles
+       WHERE id = $1 AND ($2::uuid IS NULL OR workspace_id = $2)`,
+      [id, workspaceId ?? null],
     );
-    if (rows.length === 0) throw new NotFoundException(`Connection ${id} not found`);
+    if (rows.length === 0)
+      throw new NotFoundException(`Connection ${id} not found`);
 
     const profile = this.toProfile(rows[0]);
     let password: string | undefined;
     if (rows[0]['password_encrypted'] && this.encryption.isAvailable()) {
       try {
-        password = this.encryption.decrypt(rows[0]['password_encrypted'] as string);
+        password = this.encryption.decrypt(
+          rows[0]['password_encrypted'] as string,
+        );
       } catch {
         this.logger.warn(`Failed to decrypt password for connection ${id}`);
       }
     }
     return { ...profile, password };
+  }
+
+  private requireWorkspaceId(workspaceId?: string): string {
+    if (!workspaceId) {
+      throw new BadRequestException('Authenticated workspace is required');
+    }
+    return workspaceId;
+  }
+
+  private async verifyPool(connectionId: string): Promise<void> {
+    const client = await this.poolManager.getClient(connectionId);
+    try {
+      await client.query('SELECT 1');
+    } finally {
+      client.release();
+    }
+  }
+
+  private canAutoUnlock(
+    connectionId: string,
+    profile: Pick<ConnectionProfile, 'savePassword'>,
+  ): boolean {
+    if (this.invalidAutoUnlocks.has(connectionId)) return false;
+    return profile.savePassword || this.unlockedPasswords.has(connectionId);
+  }
+
+  private isPasswordAuthenticationError(err: unknown): boolean {
+    const maybePgError = err as { code?: unknown; message?: unknown };
+    const message =
+      typeof maybePgError.message === 'string' ? maybePgError.message : '';
+    return (
+      maybePgError.code === '28P01' ||
+      message.includes('password authentication failed')
+    );
   }
 
   private toProfile(row: DbRow): ConnectionProfile {
@@ -272,6 +433,7 @@ export class ConnectionsService {
       accessMode: row['access_mode'] as ConnectionProfile['accessMode'],
       maxRows: row['max_rows'] as number,
       statementTimeoutMs: row['statement_timeout_ms'] as number,
+      savePassword: Boolean(row['save_password']),
       createdAt: (row['created_at'] as Date).toISOString(),
       updatedAt: (row['updated_at'] as Date).toISOString(),
     };

@@ -22,18 +22,18 @@ Principios obligatorios derivados de [PRD.md](PRD.md):
 
 ## 2. Estado actual del repositorio
 
-Fecha de análisis: 2026-05-03.
+Fecha de análisis: 2026-05-06.
 
-| Área | Estado actual | Rutas relevantes | Observaciones |
-| --- | --- | --- | --- |
-| Nx monorepo | Configurado con proyectos `web`, `@org/api`, `@postgres-web-manager/contracts`, `web-e2e`, `@org/api-e2e`. | [nx.json](nx.json), [package.json](package.json) | Usar `npm exec nx ...` para build, test, lint y e2e. |
-| Backend NestJS | Estructura modular existe, pero la lógica de negocio principal aún está en stubs `Not implemented`. | [apps/api/src/app/app.module.ts](apps/api/src/app/app.module.ts), [apps/api/src/modules](apps/api/src/modules) | Ya están registrados `AuthModule`, `ConnectionsModule`, `QueryModule`, `MetadataModule`, `TableDataModule`, `DdlModule`, `ExplainModule` y `SessionsModule`. |
-| API prefix | El backend expone prefijo global `/api`. | [apps/api/src/main.ts](apps/api/src/main.ts) | Las rutas documentadas en el PRD deben considerarse públicas como `/api/...`. |
-| Contratos compartidos | Existen contratos para auth, conexiones, query, metadata, table-data, DDL, explain y sessions. | [libs/contracts/src/lib](libs/contracts/src/lib), [libs/contracts/src/index.ts](libs/contracts/src/index.ts) | Son la base para frontend y backend, pero faltan contratos de auditoría, workspaces, usuarios y algunos endpoints del PRD. |
-| PostgreSQL gateway helpers | Existe `PostgresPoolManager`, mapper de errores y factory de config. | [apps/api/src/postgres](apps/api/src/postgres) | Falta conectar estos helpers con servicios, persistencia de conexiones, cifrado y sesiones. |
-| Frontend Angular | Está en estado inicial de Nx welcome, sin features de producto. | [apps/web/src/app/app.ts](apps/web/src/app/app.ts), [apps/web/src/app/app.routes.ts](apps/web/src/app/app.routes.ts), [apps/web/src/app/app.html](apps/web/src/app/app.html) | La mayor brecha del repo es implementar shell, servicios API y pantallas del producto. |
-| Docker | Existe stack base con API, web y PostgreSQL. | [docker/docker-compose.yml](docker/docker-compose.yml) | Debe evolucionar para desarrollo local real, variables seguras y migraciones de la base interna. |
-| Pruebas | Existen e2e placeholders de Nx. | [apps/api-e2e/src/api/api.spec.ts](apps/api-e2e/src/api/api.spec.ts), [apps/web-e2e/src/example.spec.ts](apps/web-e2e/src/example.spec.ts) | Deben reemplazarse por pruebas de funcionalidades reales. |
+| Área                       | Estado actual                                                                                                                       | Rutas relevantes                                                                                                                           | Observaciones                                                                                            |
+|----------------------------|-------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
+| Nx monorepo                | Configurado con proyectos `web`, `@org/api`, `@postgres-web-manager/contracts`, `web-e2e`, `@org/api-e2e`.                          | [nx.json](nx.json), [package.json](package.json)                                                                                           | Usar `npm exec nx ...` para build, test, lint y e2e.                                                     |
+| Backend NestJS             | Módulos principales implementados y protegidos con JWT/roles.                                                                       | [apps/api/src/app/app.module.ts](apps/api/src/app/app.module.ts), [apps/api/src/modules](apps/api/src/modules)                             | Auth DB-backed, conexiones, queries, metadata, table-data, DDL, explain, audit y sessions están activos. |
+| API prefix                 | El backend expone prefijo global `/api`.                                                                                            | [apps/api/src/main.ts](apps/api/src/main.ts)                                                                                               | Las rutas documentadas en el PRD deben considerarse públicas como `/api/...`.                            |
+| Contratos compartidos      | Contratos de auth, conexiones, query, metadata, table-data, DDL, explain, sessions, auditoría y workspaces exportados.              | [libs/contracts/src/lib](libs/contracts/src/lib), [libs/contracts/src/index.ts](libs/contracts/src/index.ts)                               | Son fuente compartida para frontend/backend.                                                             |
+| PostgreSQL gateway helpers | `PostgresPoolManager`, mapper de errores, migraciones, cifrado y persistencia interna conectados a servicios.                       | [apps/api/src/postgres](apps/api/src/postgres), [apps/api/src/database](apps/api/src/database)                                             | Las migraciones se empaquetan en `apps/api/dist/migrations`.                                             |
+| Frontend Angular           | Shell de producto, login, Connection Manager, workspace SQL, metadata tree, table browser, table designer y analyzer implementados. | [apps/web/src/app](apps/web/src/app)                                                                                                       | Nx welcome eliminado.                                                                                    |
+| Docker                     | Stack dev/prod con API, web y PostgreSQL.                                                                                           | [docker/docker-compose.yml](docker/docker-compose.yml), [docker/docker-compose.dev.yml](docker/docker-compose.dev.yml)                     | Mantener variables seguras desde `.env.example`.                                                         |
+| Pruebas                    | Unit/build/lint/typecheck/e2e reales pasan con Nx.                                                                                  | [apps/api-e2e/src/api/api.spec.ts](apps/api-e2e/src/api/api.spec.ts), [apps/web-e2e/src/example.spec.ts](apps/web-e2e/src/example.spec.ts) | API e2e cubre auth, conexiones, queries, metadata y table-data.                                          |
 
 ## 3. Decisiones de arquitectura para este repo
 
@@ -43,15 +43,15 @@ El backend tiene `app.setGlobalPrefix('api')` en [apps/api/src/main.ts](apps/api
 
 Rutas objetivo del MVP:
 
-| Módulo | Rutas objetivo | Estado actual |
-| --- | --- | --- |
-| Auth | `/api/auth/login`, `/api/auth/refresh`, `/api/auth/logout`, `/api/auth/me` | Falta `/me` y falta implementar servicio. |
-| Connections | `/api/connections`, `/api/connections/:id`, `/api/connections/test`, `/api/connections/:id/unlock` | Controller existe; usa `PUT` para update y falta lógica. |
-| Queries | `/api/queries/execute`, `/api/queries/explain`, `/api/queries/cancel`, `/api/queries/history` | Actualmente `QueryController` usa `/api/query/*` y `ExplainController` usa `/api/explain`. Debe alinearse. |
-| Metadata | `/api/metadata/:connectionId/schemas`, `/api/metadata/:connectionId/schemas/:schema/tables`, `/api/metadata/:connectionId/schemas/:schema/tables/:table` | Controller existe; falta implementación. |
-| Table Data | `/api/table-data/read`, `/api/table-data/preview-changes`, `/api/table-data/apply-changes` | Controller existe; falta implementación. |
-| DDL | `/api/ddl/create-table/preview`, `/api/ddl/create-table/execute`, `/api/ddl/alter-table/preview`, `/api/ddl/alter-table/execute` | Controller existe; falta implementación y endpoints de índices/constraints. |
-| Sessions | `WS /sessions` con eventos `session.open`, `session.close`, `query.execute`, `query.rows`, `query.done`, `query.error`, `query.cancelled` | Gateway existe, pero usa namespace raíz y solo responde `session.open`. |
+| Módulo      | Rutas objetivo                                                                                                                                           | Estado actual                                                                 |
+|-------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------|
+| Auth        | `/api/auth/login`, `/api/auth/refresh`, `/api/auth/logout`, `/api/auth/me`                                                                               | Implementado con usuarios DB-backed, JWT y refresh token rotation persistida. |
+| Connections | `/api/connections`, `/api/connections/:id`, `/api/connections/test`, `/api/connections/:id/test`, `/api/connections/:id/unlock`                          | Implementado con workspace isolation, cifrado opcional y unlock.              |
+| Queries     | `/api/queries/execute`, `/api/queries/explain`, `/api/queries/cancel`, `/api/queries/history`                                                            | Implementado con clasificación de riesgo, history y auditoría.                |
+| Metadata    | `/api/metadata/:connectionId/schemas`, `/api/metadata/:connectionId/schemas/:schema/tables`, `/api/metadata/:connectionId/schemas/:schema/tables/:table` | Implementado.                                                                 |
+| Table Data  | `/api/table-data/read`, `/api/table-data/preview-changes`, `/api/table-data/apply-changes`                                                               | Implementado con edición transaccional y validación de identificadores.       |
+| DDL         | `/api/ddl/create-table/preview`, `/api/ddl/create-table/execute`, `/api/ddl/alter-table/preview`, `/api/ddl/alter-table/execute`                         | Implementado.                                                                 |
+| Sessions    | `WS /sessions` con eventos `session.open`, `session.close`, `query.execute`, `query.rows`, `query.done`, `query.error`, `query.cancelled`                | Implementado con JWT handshake, streaming y cancelación.                      |
 
 ### 3.2 Contratos como fuente de verdad
 
@@ -264,11 +264,11 @@ Una tarea o fase se considera terminada cuando:
 
 ## 7. Riesgos y decisiones pendientes
 
-| Riesgo / decisión | Impacto | Resolución propuesta |
-| --- | --- | --- |
-| Rutas `query` vs `queries` y `explain` separado | Inconsistencia entre PRD, README, frontend y backend. | Estandarizar rutas públicas en plural `/api/queries/*` y dejar aliases temporales solo si se necesitan. |
-| Persistencia interna no definida | No se puede guardar conexiones, historial ni auditoría de forma real. | Implementar base interna antes de cerrar Fase 1. |
-| Auth no implementado | Riesgo de diseñar UI sin permisos reales. | Crear auth básico de desarrollo y evolucionar a JWT/guards por rol. |
-| Guardar passwords | Riesgo crítico de seguridad. | Por defecto no guardar; cifrar con key externa si `savePassword` es true. |
-| Table editing sin PK | Riesgo de updates/deletes incorrectos. | Bloquear edición o pedir confirmación avanzada si no hay PK/unique key confiable. |
-| `EXPLAIN ANALYZE` ejecuta la consulta | Puede modificar datos si se usa con escrituras. | Bloquear o ejecutar con rollback y confirmación explícita. |
+| Riesgo / decisión                               | Impacto     | Resolución propuesta                                                                                  |
+|-------------------------------------------------|-------------|-------------------------------------------------------------------------------------------------------|
+| Rutas `query` vs `queries` y `explain` separado | Resuelto.   | Rutas públicas estandarizadas en plural `/api/queries/*`.                                             |
+| Persistencia interna no definida                | Resuelto.   | Migraciones `001`-`004` crean base interna, usuarios dev, hashes de password y refresh tokens.        |
+| Auth no implementado                            | Resuelto.   | Auth DB-backed con JWT, guards globales y roles.                                                      |
+| Guardar passwords                               | Controlado. | Por defecto no se guarda password; si `savePassword=true`, se cifra con `CREDENTIALS_ENCRYPTION_KEY`. |
+| Table editing sin PK                            | Controlado. | UI/servicio bloquean o restringen edición cuando no hay PK/unique key confiable.                      |
+| `EXPLAIN ANALYZE` ejecuta la consulta           | Controlado. | `ExplainService` clasifica riesgo y exige confirmación para operaciones no seguras.                   |

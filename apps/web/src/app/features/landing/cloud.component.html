@@ -1,0 +1,128 @@
+<div class="page-content">
+  <!-- Hero -->
+  <section class="page-hero">
+    <div class="container">
+      <div class="badge-chip">
+        <span class="material-symbols-outlined">cloud</span>
+        PgStudio Cloud
+      </div>
+      <h1 class="page-hero__title">Zero infraestructura.<br />Gestión PostgreSQL instantánea.</h1>
+      <p class="page-hero__desc">
+        Accede a PgStudio desde el navegador en segundos. Sin servidores que configurar, sin clientes que instalar.
+        La capa de gateway corre en nuestra infraestructura; tus bases de datos siguen donde siempre.
+      </p>
+      <div class="page-hero__actions">
+        <a class="btn btn--primary" routerLink="/login">Comenzar gratis</a>
+        <a class="btn btn--outline" routerLink="/pricing">Ver precios</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Architecture diagram -->
+  <section class="section">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Cómo funciona</h2>
+        <p class="section-desc">El navegador nunca se conecta directamente a PostgreSQL. Todo pasa por el gateway.</p>
+      </div>
+      <div class="arch-diagram">
+        <div class="arch-node arch-node--browser">
+          <span class="material-symbols-outlined arch-icon">web</span>
+          <div class="arch-node__label">Tu navegador</div>
+          <div class="arch-node__sub">Angular App</div>
+        </div>
+        <div class="arch-arrow">
+          <span class="arch-arrow__label">HTTPS / WebSocket</span>
+          <div class="arch-arrow__line"></div>
+          <span class="material-symbols-outlined arch-arrow__icon">lock</span>
+        </div>
+        <div class="arch-node arch-node--gateway">
+          <span class="material-symbols-outlined arch-icon">hub</span>
+          <div class="arch-node__label">PgStudio Cloud</div>
+          <div class="arch-node__sub">NestJS Gateway</div>
+        </div>
+        <div class="arch-arrow">
+          <span class="arch-arrow__label">TCP PostgreSQL</span>
+          <div class="arch-arrow__line"></div>
+          <span class="material-symbols-outlined arch-arrow__icon">cable</span>
+        </div>
+        <div class="arch-node arch-node--db">
+          <span class="material-symbols-outlined arch-icon">database</span>
+          <div class="arch-node__label">Tus bases de datos</div>
+          <div class="arch-node__sub">PostgreSQL (cualquier host)</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features grid -->
+  <section class="section">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Todo incluido en Cloud</h2>
+        <p class="section-desc">Seguridad, disponibilidad y actualizaciones automáticas desde el primer día.</p>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card">
+          <span class="material-symbols-outlined feature-icon">bolt</span>
+          <h3 class="feature-title">Listo en segundos</h3>
+          <p class="feature-desc">Crea una cuenta, agrega tu conexión de PostgreSQL y empieza a consultar. Sin
+            instalaciones ni configuración local.</p>
+        </div>
+        <div class="feature-card">
+          <span class="material-symbols-outlined feature-icon">update</span>
+          <h3 class="feature-title">Actualizaciones automáticas</h3>
+          <p class="feature-desc">Siempre en la última versión. Sin ventanas de mantenimiento manuales ni
+            actualizaciones disruptivas.</p>
+        </div>
+        <div class="feature-card">
+          <span class="material-symbols-outlined feature-icon">verified_user</span>
+          <h3 class="feature-title">SSL/TLS en todo</h3>
+          <p class="feature-desc">Cifrado en tránsito entre el navegador y el gateway. Certificados gestionados
+            automáticamente.</p>
+        </div>
+        <div class="feature-card">
+          <span class="material-symbols-outlined feature-icon">key</span>
+          <h3 class="feature-title">JWT con refresh tokens</h3>
+          <p class="feature-desc">Tokens de acceso de 1h y refresh tokens de 7 días. Sesiones seguras sin comprometer la
+            experiencia de uso.</p>
+        </div>
+        <div class="feature-card">
+          <span class="material-symbols-outlined feature-icon">admin_panel_settings</span>
+          <h3 class="feature-title">Control de acceso por roles</h3>
+          <p class="feature-desc">OWNER → ADMIN → DEVELOPER → READ_ONLY. Asigna permisos precisos a cada miembro de tu
+            equipo.</p>
+        </div>
+        <div class="feature-card">
+          <span class="material-symbols-outlined feature-icon">encrypted</span>
+          <h3 class="feature-title">Credenciales cifradas</h3>
+          <p class="feature-desc">Las contraseñas de conexión se cifran con AES-GCM en el servidor. Nunca se almacenan
+            en texto plano.</p>
+        </div>
+        <div class="feature-card">
+          <span class="material-symbols-outlined feature-icon">receipt_long</span>
+          <h3 class="feature-title">Auditoría completa</h3>
+          <p class="feature-desc">Registro de todas las operaciones de escritura y DDL. Trazabilidad completa de quién
+            hizo qué y cuándo.</p>
+        </div>
+        <div class="feature-card">
+          <span class="material-symbols-outlined feature-icon">speed</span>
+          <h3 class="feature-title">Rate limiting</h3>
+          <p class="feature-desc">300 solicitudes por minuto por IP. Protección contra abuso sin impacto en el uso
+            normal de la plataforma.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="section">
+    <div class="container">
+      <div class="cta-box">
+        <h2 class="cta-title">Empieza gratis hoy</h2>
+        <p class="cta-desc">Sin tarjeta de crédito. Sin límite de tiempo en el período de prueba.</p>
+        <a class="btn btn--primary btn--lg" routerLink="/login">Crear cuenta Cloud</a>
+      </div>
+    </div>
+  </section>
+</div>

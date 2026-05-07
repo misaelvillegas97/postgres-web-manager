@@ -1,0 +1,489 @@
+$primary: #afc6ff;
+$on-primary: #002d6c;
+$primary-fixed: #d9e2ff;
+$surface: #11131a;
+$surface-container: #1d1f27;
+$surface-container-low: #191b22;
+$surface-container-high: #272a31;
+$on-surface: #e1e2ec;
+$on-surface-variant: #c2c6d6;
+$outline: #8c909f;
+$outline-variant: #424753;
+$error: #ffb4ab;
+
+:host {
+  display: block;
+}
+
+// ── Page layout ──────────────────────────────────────────────────────────────
+.conn-page {
+  padding: 32px 24px;
+  max-width: 840px;
+  margin: 0 auto;
+  height: 100%;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+// ── Header ────────────────────────────────────────────────────────────────────
+.conn-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.conn-header__title {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 28px;
+  letter-spacing: -0.01em;
+  color: $on-surface;
+  margin: 0;
+}
+
+.conn-header__sub {
+  font-size: 13px;
+  color: $on-surface-variant;
+  margin: 4px 0 0;
+}
+
+// ── New connection button ──────────────────────────────────────────────────────
+.btn-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: $primary;
+  color: $on-primary;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 150ms;
+
+  .material-symbols-outlined {
+    font-size: 16px;
+  }
+
+  &:hover {
+    background: $primary-fixed;
+  }
+}
+
+// ── Connection list ───────────────────────────────────────────────────────────
+.conn-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+// ── Connection card ───────────────────────────────────────────────────────────
+.conn-card {
+  display: flex;
+  align-items: center;
+  background: $surface-container;
+  border: 1px solid $outline-variant;
+  border-radius: 4px;
+  transition: border-color 150ms;
+  overflow: hidden;
+
+  &:hover {
+    border-color: $outline;
+  }
+
+  &--active {
+    border-color: $primary;
+  }
+}
+
+.conn-card__body {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  padding: 14px 16px;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: background 150ms;
+
+  &:hover {
+    background: $surface-container-high;
+  }
+
+  &:disabled {
+    cursor: wait;
+    opacity: 0.7;
+  }
+}
+
+.conn-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  background: rgba($primary, 0.1);
+  flex-shrink: 0;
+
+  .material-symbols-outlined {
+    font-size: 18px;
+    color: $primary;
+  }
+}
+
+.conn-card__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.conn-card__name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: $on-surface;
+}
+
+.conn-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 1px 6px;
+  border-radius: 10px;
+
+  &--active {
+    background: rgba($primary, 0.15);
+    color: $primary;
+  }
+}
+
+.conn-card__meta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: $outline;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conn-card__spinner {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: $outline;
+  flex-shrink: 0;
+}
+
+.conn-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 8px;
+  border-left: 1px solid $outline-variant;
+  height: 100%;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: $on-surface-variant;
+  cursor: pointer;
+  transition: background 150ms, color 150ms;
+
+  .material-symbols-outlined {
+    font-size: 16px;
+  }
+
+  &:hover {
+    background: $surface-container-high;
+    color: $on-surface;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: wait;
+  }
+
+  &--danger {
+    &:hover {
+      background: rgba($error, 0.1);
+      color: $error;
+    }
+  }
+}
+
+// ── Empty state ───────────────────────────────────────────────────────────────
+.conn-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 56px 32px;
+  border: 1px dashed $outline-variant;
+  border-radius: 4px;
+  text-align: center;
+
+  p {
+    font-size: 14px;
+    color: $on-surface-variant;
+    margin: 0;
+  }
+}
+
+.conn-empty__icon {
+  font-size: 36px;
+  color: $outline;
+}
+
+// ── Overlay ───────────────────────────────────────────────────────────────────
+.conn-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  border: 0;
+  padding: 0;
+  z-index: 200;
+}
+
+// ── Slide-over panel ───────────────────────────────────────────────────────────
+.conn-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: min(460px, 100vw);
+  background: $surface-container;
+  border-left: 1px solid $outline-variant;
+  z-index: 201;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  display: flex;
+  flex-direction: column;
+}
+
+.conn-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 24px 0;
+  flex-shrink: 0;
+
+  h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: $on-surface;
+    margin: 0;
+  }
+}
+
+.conn-panel__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  color: $on-surface-variant;
+  cursor: pointer;
+  transition: background 150ms;
+
+  .material-symbols-outlined {
+    font-size: 18px;
+  }
+
+  &:hover {
+    background: $surface-container-high;
+  }
+}
+
+// ── Form ──────────────────────────────────────────────────────────────────────
+.conn-form {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  flex: 1;
+}
+
+.form-section {
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid $outline-variant;
+
+  &:last-of-type {
+    border-bottom: none;
+    margin-bottom: 0;
+  }
+
+  &--checks {
+    display: flex;
+    gap: 24px;
+  }
+}
+
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  &--2 {
+    flex-direction: row;
+    gap: 12px;
+    align-items: flex-start;
+  }
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+
+  &--sm {
+    flex: 0 0 100px;
+  }
+
+  label {
+    font-size: 12px;
+    font-weight: 500;
+    color: $on-surface-variant;
+  }
+
+  input {
+    width: 100%;
+    background: $surface-container-low;
+    border: 1px solid $outline-variant;
+    border-radius: 4px;
+    color: $on-surface;
+    font-size: 13px;
+    padding: 8px 10px;
+    outline: none;
+    transition: border-color 150ms;
+    font-family: inherit;
+
+    &::placeholder {
+      color: $outline;
+    }
+
+    &:focus {
+      border-color: $primary;
+    }
+  }
+}
+
+.required {
+  color: $error;
+  font-size: 10px;
+}
+
+.check-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: $on-surface-variant;
+  cursor: pointer;
+
+  input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    padding: 0;
+    accent-color: $primary;
+  }
+}
+
+.form-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(255, 180, 171, 0.08);
+  border: 1px solid rgba(255, 180, 171, 0.2);
+  border-radius: 4px;
+  font-size: 13px;
+  color: $error;
+  margin-bottom: 16px;
+
+  .material-symbols-outlined {
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 20px;
+  border-top: 1px solid $outline-variant;
+}
+
+.btn-cancel {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid $outline-variant;
+  border-radius: 4px;
+  color: $on-surface;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 150ms, background 150ms;
+  font-family: inherit;
+
+  &:hover {
+    border-color: $outline;
+    background: $surface-container-high;
+  }
+}
+
+.btn-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  background: $primary;
+  color: $on-primary;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 150ms;
+  font-family: inherit;
+
+  &:hover:not(:disabled) {
+    background: $primary-fixed;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}

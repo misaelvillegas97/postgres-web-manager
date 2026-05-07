@@ -6,8 +6,7 @@
     "moduleResolution": "bundler",
     "module": "preserve",
     "lib": ["es2022", "dom", "dom.iterable"],
-    "emitDeclarationOnly": false,
-    "composite": false
+    "emitDeclarationOnly": false
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,

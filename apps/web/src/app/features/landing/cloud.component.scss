@@ -1,0 +1,326 @@
+$primary: #afc6ff;
+$on-primary: #002d6c;
+$primary-fixed: #d9e2ff;
+$surface: #11131a;
+$surface-container: #1d1f27;
+$surface-container-low: #191b22;
+$on-surface: #e1e2ec;
+$on-surface-variant: #c2c6d6;
+$outline: #8c909f;
+$outline-variant: #424753;
+$success: #4caf7d;
+
+$font-base: 'Inter', system-ui, sans-serif;
+$section-gap: 96px;
+$gutter: 24px;
+$container-max: 1200px;
+$r: 2px;
+$r-lg: 4px;
+$r-xl: 8px;
+
+:host {
+  display: block;
+  background: $surface;
+  color: $on-surface;
+  font-family: $font-base;
+}
+
+.container {
+  max-width: $container-max;
+  margin: 0 auto;
+  padding: 0 $gutter;
+}
+
+.page-content {
+  display: flex;
+  flex-direction: column;
+  gap: $section-gap;
+  padding-bottom: $section-gap;
+}
+
+// ── Hero
+.page-hero {
+  padding: $section-gap 0 0;
+
+  .container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.5rem;
+  }
+}
+
+.badge-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba($primary, 0.1);
+  border: 1px solid rgba($primary, 0.25);
+  color: $primary;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 20px;
+
+  .material-symbols-outlined {
+    font-size: 14px;
+  }
+}
+
+.page-hero__title {
+  font-size: clamp(28px, 4vw, 48px);
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  font-weight: 700;
+  color: $on-surface;
+  margin: 0;
+  max-width: 700px;
+}
+
+.page-hero__desc {
+  font-size: 15px;
+  line-height: 1.6;
+  color: $on-surface-variant;
+  max-width: 560px;
+  margin: 0;
+}
+
+.page-hero__actions {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+// ── Buttons
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: $r;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  transition: background 200ms, border-color 200ms;
+
+  &--primary {
+    background: $primary;
+    color: $on-primary;
+
+    &:hover {
+      background: $primary-fixed;
+    }
+  }
+
+  &--outline {
+    border: 1px solid $outline-variant;
+    background: transparent;
+    color: $on-surface;
+
+    &:hover {
+      background: $surface-container;
+      border-color: $outline;
+    }
+  }
+
+  &--lg {
+    padding: 13px 28px;
+    font-size: 14px;
+  }
+}
+
+// ── Section
+.section {
+  .container {
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+  }
+}
+
+.section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.section-title {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: $on-surface;
+  margin: 0;
+}
+
+.section-desc {
+  font-size: 14px;
+  color: $on-surface-variant;
+  max-width: 42rem;
+  margin: 0;
+}
+
+// ── Architecture diagram
+.arch-diagram {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 2.5rem;
+  background: $surface-container;
+  border: 1px solid $outline-variant;
+  border-radius: $r-xl;
+
+  @media (min-width: 768px) {
+    flex-wrap: nowrap;
+  }
+}
+
+.arch-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 1.5rem 2rem;
+  border-radius: $r-lg;
+  border: 1px solid $outline-variant;
+  background: $surface-container-low;
+  min-width: 150px;
+  text-align: center;
+
+  &--gateway {
+    border-color: rgba($primary, 0.4);
+    background: rgba($primary, 0.06);
+  }
+}
+
+.arch-icon {
+  font-size: 32px;
+  color: $on-surface-variant;
+}
+
+.arch-node--gateway .arch-icon {
+  color: $primary;
+}
+
+.arch-node--db .arch-icon {
+  color: $success;
+}
+
+.arch-node__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: $on-surface;
+}
+
+.arch-node__sub {
+  font-size: 11px;
+  color: $outline;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.arch-arrow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+
+  @media (max-width: 767px) {
+    display: none;
+  }
+}
+
+.arch-arrow__label {
+  font-size: 10px;
+  color: $outline;
+  white-space: nowrap;
+}
+
+.arch-arrow__line {
+  width: 60px;
+  height: 1px;
+  background: $outline-variant;
+}
+
+.arch-arrow__icon {
+  font-size: 16px;
+  color: $outline;
+}
+
+// ── Features grid
+.features-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  @media (min-width: 1024px) {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.feature-card {
+  background: $surface-container;
+  border: 1px solid $outline-variant;
+  padding: 1.5rem;
+  border-radius: $r-lg;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: border-color 200ms;
+
+  &:hover {
+    border-color: rgba($primary, 0.4);
+  }
+}
+
+.feature-icon {
+  color: $primary;
+  font-size: 22px;
+}
+
+.feature-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: $on-surface;
+  margin: 0;
+}
+
+.feature-desc {
+  font-size: 12px;
+  line-height: 1.5;
+  color: $on-surface-variant;
+  margin: 0;
+}
+
+// ── CTA box
+.cta-box {
+  background: $surface-container;
+  border: 1px solid $outline-variant;
+  border-radius: $r-xl;
+  padding: 3rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.cta-title {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: $on-surface;
+  margin: 0;
+}
+
+.cta-desc {
+  font-size: 14px;
+  color: $on-surface-variant;
+  margin: 0;
+}

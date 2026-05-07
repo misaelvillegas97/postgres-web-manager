@@ -1,0 +1,168 @@
+<!-- Page -->
+<div class="conn-page">
+  <div class="conn-header">
+    <div>
+      <h2 class="conn-header__title">Connections</h2>
+      <p class="conn-header__sub">Manage and connect to your PostgreSQL databases</p>
+    </div>
+    <button (click)="openNew()" class="btn-new">
+      <span class="material-symbols-outlined">add</span>
+      New connection
+    </button>
+  </div>
+
+  <!-- Connection list -->
+  <div class="conn-list">
+    @for (c of connections(); track c.id) {
+      <div [class.conn-card--active]="isActive(c)" class="conn-card">
+        <button
+          (click)="connectTo(c)"
+          [disabled]="connecting() === c.id"
+          class="conn-card__body"
+          type="button"
+        >
+          <div class="conn-card__icon">
+            <span class="material-symbols-outlined">database</span>
+          </div>
+          <div class="conn-card__info">
+            <div class="conn-card__name">
+              {{ c.name }}
+              @if (isActive(c)) {
+                <span class="conn-badge conn-badge--active">Active</span>
+              }
+            </div>
+            <div class="conn-card__meta">{{ c.username }}&#64;{{ c.host }}:{{ c.port }}/{{ c.database }}</div>
+          </div>
+          @if (connecting() === c.id) {
+            <span class="conn-card__spinner">
+              <span class="spinner"></span>
+              Opening…
+            </span>
+          }
+        </button>
+        <div class="conn-card__actions">
+          <button
+            (click)="testConn(c)"
+            [disabled]="testing() === c.id"
+            class="action-btn"
+            title="Test connection"
+          >
+            @if (testing() === c.id) {
+              <span class="spinner"></span>
+            } @else {
+              <span class="material-symbols-outlined">wifi_tethering</span>
+            }
+          </button>
+          <button (click)="editConn(c)" class="action-btn" title="Edit">
+            <span class="material-symbols-outlined">edit</span>
+          </button>
+          <button (click)="deleteConn(c.id)" class="action-btn action-btn--danger" title="Delete">
+            <span class="material-symbols-outlined">delete</span>
+          </button>
+        </div>
+      </div>
+    } @empty {
+      <div class="conn-empty">
+        <span class="material-symbols-outlined conn-empty__icon">cable</span>
+        <p>No connections yet</p>
+        <button (click)="openNew()" class="btn-new">
+          <span class="material-symbols-outlined">add</span>
+          New connection
+        </button>
+      </div>
+    }
+  </div>
+</div>
+
+<!-- Slide-over form panel -->
+@if (showForm()) {
+  <button
+    (click)="cancelForm()"
+    aria-label="Close connection form"
+    class="conn-overlay"
+    type="button"
+  ></button>
+
+  <aside [attr.aria-label]="(editId() ? 'Edit' : 'New') + ' connection'" aria-modal="true" class="conn-panel"
+         role="dialog">
+    <div class="conn-panel__header">
+      <h3>{{ editId() ? 'Edit' : 'New' }} connection</h3>
+      <button (click)="cancelForm()" aria-label="Close" class="conn-panel__close" type="button">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+
+    <form #f="ngForm" (ngSubmit)="saveForm()" class="conn-form" novalidate>
+      <div class="form-section">
+        <div class="field">
+          <label for="connection-name">Name <span class="required">*</span></label>
+          <input [(ngModel)]="form.name" id="connection-name" name="name" placeholder="My Database" required />
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-row form-row--2">
+          <div class="field">
+            <label for="connection-host">Host <span class="required">*</span></label>
+            <input [(ngModel)]="form.host" id="connection-host" name="host" placeholder="localhost" required />
+          </div>
+          <div class="field field--sm">
+            <label for="connection-port">Port</label>
+            <input [(ngModel)]="form.port" id="connection-port" name="port" placeholder="5432" type="number" />
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-row form-row--2">
+          <div class="field">
+            <label for="connection-username">Username <span class="required">*</span></label>
+            <input [(ngModel)]="form.username" id="connection-username" name="username" placeholder="postgres"
+                   required />
+          </div>
+          <div class="field">
+            <label for="connection-password">Password</label>
+            <input [(ngModel)]="form.password" autocomplete="new-password" id="connection-password" name="password"
+                   placeholder="••••" type="password" />
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="field">
+          <label for="connection-database">Database <span class="required">*</span></label>
+          <input [(ngModel)]="form.database" id="connection-database" name="database" placeholder="postgres" required />
+        </div>
+      </div>
+
+      <div class="form-section form-section--checks">
+        <label class="check-label">
+          <input [(ngModel)]="form.ssl" name="ssl" type="checkbox" />
+          <span>Use SSL</span>
+        </label>
+        <label class="check-label">
+          <input [(ngModel)]="form.savePassword" name="savePassword" type="checkbox" />
+          <span>Save password (encrypted)</span>
+        </label>
+      </div>
+
+      @if (formError()) {
+        <div class="form-error" role="alert">
+          <span class="material-symbols-outlined">error</span>
+          {{ formError() }}
+        </div>
+      }
+
+      <div class="form-actions">
+        <button (click)="cancelForm()" class="btn-cancel" type="button">Cancel</button>
+        <button [disabled]="saving()" class="btn-save" type="submit">
+          @if (saving()) {
+            <span class="spinner"></span> Saving…
+          } @else {
+            Save connection
+          }
+        </button>
+      </div>
+    </form>
+  </aside>
+}

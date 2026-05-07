@@ -1,0 +1,36 @@
+<header class="site-header">
+  <div class="container header-inner">
+    <div class="header-left">
+      <a class="site-logo" routerLink="/">PgStudio Gateway</a>
+      <nav class="header-nav">
+        <a [routerLinkActiveOptions]="{exact:true}" class="nav-link" routerLink="/" routerLinkActive="nav-link--active">Product</a>
+        <a class="nav-link" routerLink="/cloud" routerLinkActive="nav-link--active">Cloud</a>
+        <a class="nav-link" routerLink="/self-hosted" routerLinkActive="nav-link--active">Self-Hosted</a>
+        <a class="nav-link" routerLink="/deploy" routerLinkActive="nav-link--active">Deploy</a>
+        <a class="nav-link" routerLink="/docs" routerLinkActive="nav-link--active">Docs</a>
+        <a class="nav-link" routerLink="/pricing" routerLinkActive="nav-link--active">Pricing</a>
+      </nav>
+    </div>
+    <div class="header-actions">
+      <a class="link-github" href="https://github.com/misaelvillegas97/postgres-web-manager" rel="noopener noreferrer"
+         target="_blank">GitHub</a>
+      <a class="btn-try-cloud" routerLink="/login">Try Cloud</a>
+    </div>
+  </div>
+</header>
+
+<router-outlet />
+
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <span class="footer-brand">PgStudio Gateway</span>
+    <span class="footer-copy">© 2026 PgStudio Gateway. Built for architectural precision.</span>
+    <nav class="footer-links">
+      <a class="footer-link" routerLink="/pricing">Pricing</a>
+      <a class="footer-link" routerLink="/deploy">Deploy</a>
+      <a class="footer-link" routerLink="/docs">Docs</a>
+      <a class="footer-link" href="https://github.com/misaelvillegas97/postgres-web-manager" rel="noopener noreferrer"
+         target="_blank">GitHub</a>
+    </nav>
+  </div>
+</footer>

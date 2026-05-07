@@ -1,0 +1,192 @@
+<div class="page-content">
+  <!-- Hero -->
+  <section class="page-hero">
+    <div class="container">
+      <div class="badge-chip">
+        <span class="material-symbols-outlined">dns</span>
+        Self-Hosted
+      </div>
+      <h1 class="page-hero__title">Control total.<br />Tu infraestructura, tus reglas.</h1>
+      <p class="page-hero__desc">
+        Despliega PgStudio dentro de tu propia VPC, servidor o cluster de Kubernetes.
+        Tus datos y credenciales jamás salen de tu red. Cumplimiento normativo total.
+      </p>
+      <div class="page-hero__actions">
+        <a class="btn btn--primary" routerLink="/deploy">Ver guía de despliegue</a>
+        <a class="btn btn--outline" href="https://github.com/misaelvillegas97/postgres-web-manager"
+           rel="noopener noreferrer"
+           target="_blank">Ver en GitHub</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Quick start -->
+  <section class="section">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Inicio rápido con Docker Compose</h2>
+        <p class="section-desc">El método recomendado para self-hosted. Levanta el stack completo en un solo
+          comando.</p>
+      </div>
+      <div class="code-block">
+        <div class="code-block__bar">
+          <span class="code-block__dot"></span><span class="code-block__dot"></span><span
+          class="code-block__dot"></span>
+          <span class="code-block__title">Terminal</span>
+        </div>
+        <pre class="code-block__body"><span class="cm"># 1. Copia y edita las variables de entorno</span>
+cp .env.production.example .env.production
+
+<span class="cm"># 2. Levanta el stack completo (nginx + API + PostgreSQL metadata)</span>
+docker compose --env-file .env.production \
+  -f docker/docker-compose.yml up -d --build
+
+<span class="cm"># 3. Abre en el navegador</span>
+open http://localhost:8080</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- Services architecture -->
+  <section class="section">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Qué se despliega</h2>
+        <p class="section-desc">Tres servicios en red interna. Sólo el puerto del frontend queda expuesto al
+          exterior.</p>
+      </div>
+      <div class="services-grid">
+        <div class="service-card">
+          <div class="service-card__header">
+            <span class="material-symbols-outlined service-icon">public</span>
+            <h3 class="service-name">web (nginx)</h3>
+            <span class="service-port">:8080</span>
+          </div>
+          <p class="service-desc">Sirve la SPA Angular y hace proxy de <code>/api/*</code> y <code>/socket.io/*</code>
+            al servicio API interno.</p>
+          <div class="service-tag">Expuesto al host</div>
+        </div>
+        <div class="service-card">
+          <div class="service-card__header">
+            <span class="material-symbols-outlined service-icon service-icon--primary">hub</span>
+            <h3 class="service-name">api (NestJS)</h3>
+            <span class="service-port">:3000 (interno)</span>
+          </div>
+          <p class="service-desc">Gateway principal. Maneja auth, conexiones, queries SQL y WebSocket. Conecta a
+            PostgreSQL vía TCP.</p>
+          <div class="service-tag service-tag--internal">Red interna</div>
+        </div>
+        <div class="service-card">
+          <div class="service-card__header">
+            <span class="material-symbols-outlined service-icon service-icon--success">database</span>
+            <h3 class="service-name">postgres (metadata)</h3>
+            <span class="service-port">:5432 (interno)</span>
+          </div>
+          <p class="service-desc">Base de datos interna para los metadatos de PgStudio: usuarios, conexiones guardadas y
+            sesiones.</p>
+          <div class="service-tag service-tag--internal">Red interna</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Environment variables -->
+  <section class="section">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Variables de entorno requeridas</h2>
+        <p class="section-desc">Genera los secretos con Node.js o cualquier generador de bytes aleatorios.</p>
+      </div>
+      <div class="code-block">
+        <div class="code-block__bar">
+          <span class="code-block__dot"></span><span class="code-block__dot"></span><span
+          class="code-block__dot"></span>
+          <span class="code-block__title">Generar secretos</span>
+        </div>
+        <pre class="code-block__body">node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"</pre>
+      </div>
+      <div class="env-table">
+        <div class="env-row env-row--header">
+          <span>Variable</span>
+          <span>Descripción</span>
+        </div>
+        <div class="env-row">
+          <code class="env-var">DATABASE_URL</code>
+          <span class="env-desc">PostgreSQL URL para la base de metadatos interna de PgStudio.</span>
+        </div>
+        <div class="env-row">
+          <code class="env-var">JWT_SECRET</code>
+          <span class="env-desc">Secreto para tokens de acceso (1h). Mínimo 32 bytes aleatorios.</span>
+        </div>
+        <div class="env-row">
+          <code class="env-var">JWT_REFRESH_SECRET</code>
+          <span class="env-desc">Secreto diferente para refresh tokens (7d). No reutilices JWT_SECRET.</span>
+        </div>
+        <div class="env-row">
+          <code class="env-var">CREDENTIALS_ENCRYPTION_KEY</code>
+          <span class="env-desc">Clave AES-GCM para cifrar contraseñas de conexión guardadas. Mínimo 32 chars.</span>
+        </div>
+        <div class="env-row">
+          <code class="env-var">CORS_ORIGIN</code>
+          <span class="env-desc">Origen público del frontend, ej. <code>https://pgstudio.example.com</code>.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Installer scripts -->
+  <section class="section">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Instalador local automático</h2>
+        <p class="section-desc">El script genera secretos, crea el directorio de instalación y arranca Docker
+          Compose.</p>
+      </div>
+      <div class="install-grid">
+        <div class="install-card">
+          <div class="install-card__header">
+            <span class="material-symbols-outlined install-icon">terminal</span>
+            <h3 class="install-card__title">Linux / macOS / WSL</h3>
+          </div>
+          <div class="code-block code-block--sm">
+            <pre class="code-block__body">sh scripts/install-local.sh
+
+<span class="cm"># Con puerto personalizado</span>
+PGSTUDIO_WEB_PORT=9090 sh scripts/install-local.sh</pre>
+          </div>
+        </div>
+        <div class="install-card">
+          <div class="install-card__header">
+            <span class="material-symbols-outlined install-icon">window</span>
+            <h3 class="install-card__title">Windows PowerShell</h3>
+          </div>
+          <div class="code-block code-block--sm">
+            <pre class="code-block__body">.\scripts\install-local.ps1
+
+<span class="cm"># Con base de datos externa</span>
+.\scripts\install-local.ps1 `
+  -ExternalDatabaseUrl "postgresql://..."</pre>
+          </div>
+        </div>
+      </div>
+      <p class="install-note">
+        <span class="material-symbols-outlined">folder</span>
+        Directorio de instalación por defecto: <code>~/.pgstudio</code>
+      </p>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="section">
+    <div class="container">
+      <div class="cta-box">
+        <h2 class="cta-title">¿Prefieres usar la nube gestionada?</h2>
+        <p class="cta-desc">Si no quieres gestionar infraestructura, el modo Cloud está disponible en segundos.</p>
+        <div class="cta-actions">
+          <a class="btn btn--primary" routerLink="/login">Probar Cloud gratis</a>
+          <a class="btn btn--outline" routerLink="/deploy">Todas las opciones de despliegue</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>

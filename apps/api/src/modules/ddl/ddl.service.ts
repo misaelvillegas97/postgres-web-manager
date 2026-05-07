@@ -1,4 +1,9 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   AlterTableRequest,
   CreateTableColumn,
@@ -7,8 +12,18 @@ import {
   DdlPreviewResponse,
 } from '@postgres-web-manager/contracts';
 import { PostgresPoolManager } from '../../postgres/postgres-pool.manager';
+import { ConnectionsService } from '../connections/connections.service';
 
 const IDENTIFIER_RE = /^[a-zA-Z_][a-zA-Z0-9_$]*$/;
+const TYPE_RE = /^[a-z][a-z0-9_ ]*$/;
+const ALLOWED_INDEX_METHODS = new Set(['btree', 'hash', 'gist', 'gin', 'brin']);
+const ALLOWED_REFERENTIAL_ACTIONS = new Set([
+  'NO ACTION',
+  'RESTRICT',
+  'CASCADE',
+  'SET NULL',
+  'SET DEFAULT',
+]);
 
 // Map of common short-form type aliases to full PG types
 const TYPE_ALIASES: Record<string, string> = {
@@ -25,19 +40,32 @@ const TYPE_ALIASES: Record<string, string> = {
 
 @Injectable()
 export class DdlService {
-  constructor(private readonly poolManager: PostgresPoolManager) {}
+  constructor(
+    private readonly poolManager: PostgresPoolManager,
+    private readonly connectionsService: ConnectionsService,
+  ) {}
 
   // ── CREATE TABLE ────────────────────────────────────────────────────────────
 
-  async previewCreateTable(dto: CreateTableRequest): Promise<DdlPreviewResponse> {
+  async previewCreateTable(
+    dto: CreateTableRequest,
+    workspaceId?: string,
+  ): Promise<DdlPreviewResponse> {
+    await this.ensureConnectionAccess(dto.connectionId, workspaceId);
     const sql = this.buildCreateTableSql(dto);
     const warnings = this.warnCreateTable(dto);
     return { sql, warnings };
   }
 
-  async executeCreateTable(dto: CreateTableRequest): Promise<DdlExecuteResponse> {
+  async executeCreateTable(
+    dto: CreateTableRequest,
+    workspaceId?: string,
+  ): Promise<DdlExecuteResponse> {
+    await this.ensureConnectionAccess(dto.connectionId, workspaceId);
     if (this.poolManager.getAccessMode(dto.connectionId) === 'read-only') {
-      throw new ForbiddenException('Connection is in read-only mode. DDL operations are not allowed.');
+      throw new ForbiddenException(
+        'Connection is in read-only mode. DDL operations are not allowed.',
+      );
     }
     const sql = this.buildCreateTableSql(dto);
     return this.executeDdl(dto.connectionId, sql);
@@ -45,16 +73,26 @@ export class DdlService {
 
   // ── ALTER TABLE ─────────────────────────────────────────────────────────────
 
-  async previewAlterTable(dto: AlterTableRequest): Promise<DdlPreviewResponse> {
+  async previewAlterTable(
+    dto: AlterTableRequest,
+    workspaceId?: string,
+  ): Promise<DdlPreviewResponse> {
+    await this.ensureConnectionAccess(dto.connectionId, workspaceId);
     const statements = this.buildAlterTableStatements(dto);
     const sql = statements.join(';\n') + ';';
     const warnings = this.warnAlterTable(dto);
     return { sql, warnings };
   }
 
-  async executeAlterTable(dto: AlterTableRequest): Promise<DdlExecuteResponse> {
+  async executeAlterTable(
+    dto: AlterTableRequest,
+    workspaceId?: string,
+  ): Promise<DdlExecuteResponse> {
+    await this.ensureConnectionAccess(dto.connectionId, workspaceId);
     if (this.poolManager.getAccessMode(dto.connectionId) === 'read-only') {
-      throw new ForbiddenException('Connection is in read-only mode. DDL operations are not allowed.');
+      throw new ForbiddenException(
+        'Connection is in read-only mode. DDL operations are not allowed.',
+      );
     }
     const statements = this.buildAlterTableStatements(dto);
     const sql = statements.join(';\n') + ';';
@@ -79,32 +117,53 @@ export class DdlService {
     if (dto.primaryKey?.length) {
       dto.primaryKey.forEach((c) => this.validateId(c, 'primary key column'));
       const pkCols = dto.primaryKey.map((c) => `"${c}"`).join(', ');
-      lines.push(`  CONSTRAINT "${dto.tableName}_pkey" PRIMARY KEY (${pkCols})`);
+      lines.push(
+        `  CONSTRAINT "${dto.tableName}_pkey" PRIMARY KEY (${pkCols})`,
+      );
     }
 
     // Unique constraints from column definitions
     for (const col of dto.columns) {
       if (col.unique && !(dto.primaryKey ?? []).includes(col.name)) {
-        lines.push(`  CONSTRAINT "${dto.tableName}_${col.name}_key" UNIQUE ("${col.name}")`);
+        lines.push(
+          `  CONSTRAINT "${dto.tableName}_${col.name}_key" UNIQUE ("${col.name}")`,
+        );
       }
     }
 
     // Check constraints
     for (const chk of dto.checks ?? []) {
-      const name = chk.name ?? `${dto.tableName}_check_${Math.random().toString(36).slice(2, 7)}`;
+      const name =
+        chk.name ??
+        `${dto.tableName}_check_${Math.random().toString(36).slice(2, 7)}`;
+      this.validateId(name, 'check constraint name');
       lines.push(`  CONSTRAINT "${name}" CHECK (${chk.expression})`);
     }
 
     // Foreign keys
     for (const fk of dto.foreignKeys ?? []) {
+      fk.columns.forEach((c) => this.validateId(c, 'foreign key column'));
+      this.validateId(fk.referencedSchema, 'referenced schema');
+      this.validateId(fk.referencedTable, 'referenced table');
+      fk.referencedColumns.forEach((c) =>
+        this.validateId(c, 'referenced column'),
+      );
+      if (fk.name) this.validateId(fk.name, 'foreign key name');
+      if (fk.onDelete) this.validateReferentialAction(fk.onDelete, 'onDelete');
+      if (fk.onUpdate) this.validateReferentialAction(fk.onUpdate, 'onUpdate');
+
       const fkCols = fk.columns.map((c) => `"${c}"`).join(', ');
       const refCols = fk.referencedColumns.map((c) => `"${c}"`).join(', ');
       const name = fk.name ?? `${dto.tableName}_${fk.columns.join('_')}_fkey`;
       lines.push(
         `  CONSTRAINT "${name}" FOREIGN KEY (${fkCols}) ` +
-        `REFERENCES "${fk.referencedSchema}"."${fk.referencedTable}" (${refCols})` +
-        (fk.onDelete && fk.onDelete !== 'NO ACTION' ? ` ON DELETE ${fk.onDelete}` : '') +
-        (fk.onUpdate && fk.onUpdate !== 'NO ACTION' ? ` ON UPDATE ${fk.onUpdate}` : ''),
+          `REFERENCES "${fk.referencedSchema}"."${fk.referencedTable}" (${refCols})` +
+          (fk.onDelete && fk.onDelete !== 'NO ACTION'
+            ? ` ON DELETE ${fk.onDelete}`
+            : '') +
+          (fk.onUpdate && fk.onUpdate !== 'NO ACTION'
+            ? ` ON UPDATE ${fk.onUpdate}`
+            : ''),
       );
     }
 
@@ -117,6 +176,11 @@ export class DdlService {
 
     // Indexes (outside the CREATE TABLE body)
     for (const idx of dto.indexes ?? []) {
+      idx.columns.forEach((c) => this.validateId(c, 'index column'));
+      if (idx.name) this.validateId(idx.name, 'index name');
+      if (idx.method && !ALLOWED_INDEX_METHODS.has(idx.method)) {
+        throw new BadRequestException(`Invalid index method: "${idx.method}"`);
+      }
       const idxCols = idx.columns.map((c) => `"${c}"`).join(', ');
       const name = idx.name ?? `${dto.tableName}_${idx.columns.join('_')}_idx`;
       const unique = idx.unique ? 'UNIQUE ' : '';
@@ -149,7 +213,9 @@ export class DdlService {
     for (const r of dto.renameColumns ?? []) {
       this.validateId(r.from, 'column name');
       this.validateId(r.to, 'column name');
-      stmts.push(`ALTER TABLE ${tableRef} RENAME COLUMN "${r.from}" TO "${r.to}"`);
+      stmts.push(
+        `ALTER TABLE ${tableRef} RENAME COLUMN "${r.from}" TO "${r.to}"`,
+      );
     }
 
     // Alter column properties
@@ -159,8 +225,13 @@ export class DdlService {
       const chg = alt.changes;
 
       if (chg.type) {
-        const typeSql = this.columnTypeSql({ ...chg, name: alt.name } as CreateTableColumn);
-        stmts.push(`ALTER TABLE ${tableRef} ALTER COLUMN ${colRef} TYPE ${typeSql} USING ${colRef}::${typeSql}`);
+        const typeSql = this.columnTypeSql({
+          ...chg,
+          name: alt.name,
+        } as CreateTableColumn);
+        stmts.push(
+          `ALTER TABLE ${tableRef} ALTER COLUMN ${colRef} TYPE ${typeSql} USING ${colRef}::${typeSql}`,
+        );
       }
       if (chg.nullable !== undefined) {
         stmts.push(
@@ -169,9 +240,13 @@ export class DdlService {
       }
       if (chg.defaultValue !== undefined) {
         if (chg.defaultValue === '' || chg.defaultValue === null) {
-          stmts.push(`ALTER TABLE ${tableRef} ALTER COLUMN ${colRef} DROP DEFAULT`);
+          stmts.push(
+            `ALTER TABLE ${tableRef} ALTER COLUMN ${colRef} DROP DEFAULT`,
+          );
         } else {
-          stmts.push(`ALTER TABLE ${tableRef} ALTER COLUMN ${colRef} SET DEFAULT ${chg.defaultValue}`);
+          stmts.push(
+            `ALTER TABLE ${tableRef} ALTER COLUMN ${colRef} SET DEFAULT ${chg.defaultValue}`,
+          );
         }
       }
     }
@@ -187,16 +262,36 @@ export class DdlService {
     return `"${col.name}" ${type}${notNull}${def}`;
   }
 
-  private columnTypeSql(col: Pick<CreateTableColumn, 'type' | 'length' | 'precision' | 'scale' | 'identity'>): string {
+  private columnTypeSql(
+    col: Pick<
+      CreateTableColumn,
+      'type' | 'length' | 'precision' | 'scale' | 'identity'
+    >,
+  ): string {
     if (col.identity) return 'bigserial';
     const rawType = (col.type ?? 'text').toLowerCase();
+    if (!TYPE_RE.test(rawType)) {
+      throw new BadRequestException(`Invalid column type: "${col.type}"`);
+    }
     const resolved = TYPE_ALIASES[rawType] ?? rawType;
 
-    if (col.length && ['character varying', 'varchar', 'char', 'character', 'bit', 'varbit'].includes(resolved)) {
+    if (
+      col.length &&
+      [
+        'character varying',
+        'varchar',
+        'char',
+        'character',
+        'bit',
+        'varbit',
+      ].includes(resolved)
+    ) {
       return `${resolved}(${col.length})`;
     }
     if (col.precision != null && ['numeric', 'decimal'].includes(resolved)) {
-      return col.scale != null ? `${resolved}(${col.precision}, ${col.scale})` : `${resolved}(${col.precision})`;
+      return col.scale != null
+        ? `${resolved}(${col.precision}, ${col.scale})`
+        : `${resolved}(${col.precision})`;
     }
     return resolved;
   }
@@ -207,7 +302,10 @@ export class DdlService {
     const warns: string[] = [];
     if (!dto.primaryKey?.length) {
       const hasPkCol = dto.columns.some((c) => c.identity);
-      if (!hasPkCol) warns.push('No primary key defined — consider adding one for safe row identification.');
+      if (!hasPkCol)
+        warns.push(
+          'No primary key defined — consider adding one for safe row identification.',
+        );
     }
     return warns;
   }
@@ -215,19 +313,29 @@ export class DdlService {
   private warnAlterTable(dto: AlterTableRequest): string[] {
     const warns: string[] = [];
     if (dto.dropColumns?.length) {
-      warns.push(`Dropping columns is irreversible. Affected: ${dto.dropColumns.join(', ')}.`);
+      warns.push(
+        `Dropping columns is irreversible. Affected: ${dto.dropColumns.join(', ')}.`,
+      );
     }
     if (dto.alterColumns?.some((a) => a.changes.type)) {
-      warns.push('Changing column types may fail if existing data cannot be cast. A USING clause is generated but review before executing.');
+      warns.push(
+        'Changing column types may fail if existing data cannot be cast. A USING clause is generated but review before executing.',
+      );
     }
     return warns;
   }
 
   // ── Execution ────────────────────────────────────────────────────────────────
 
-  private async executeDdl(connectionId: string, sql: string): Promise<DdlExecuteResponse> {
+  private async executeDdl(
+    connectionId: string,
+    sql: string,
+  ): Promise<DdlExecuteResponse> {
     const pool = this.poolManager.getPool(connectionId);
-    if (!pool) throw new NotFoundException(`No active connection for id "${connectionId}"`);
+    if (!pool)
+      throw new NotFoundException(
+        `No active connection for id "${connectionId}"`,
+      );
 
     const client = await pool.connect();
     const start = Date.now();
@@ -238,7 +346,12 @@ export class DdlService {
       return { success: true, sql, durationMs: Date.now() - start };
     } catch (err) {
       await client.query('ROLLBACK');
-      return { success: false, sql, durationMs: Date.now() - start, error: (err as Error).message };
+      return {
+        success: false,
+        sql,
+        durationMs: Date.now() - start,
+        error: (err as Error).message,
+      };
     } finally {
       client.release();
     }
@@ -250,5 +363,19 @@ export class DdlService {
     if (!IDENTIFIER_RE.test(name)) {
       throw new BadRequestException(`Invalid ${label}: "${name}"`);
     }
+  }
+
+  private validateReferentialAction(action: string, label: string): void {
+    if (!ALLOWED_REFERENTIAL_ACTIONS.has(action)) {
+      throw new BadRequestException(`Invalid ${label}: "${action}"`);
+    }
+  }
+
+  private async ensureConnectionAccess(
+    connectionId: string,
+    workspaceId?: string,
+  ): Promise<void> {
+    if (!workspaceId) return;
+    await this.connectionsService.findOne(connectionId, workspaceId);
   }
 }

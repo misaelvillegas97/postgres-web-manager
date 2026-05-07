@@ -1,0 +1,170 @@
+$primary: #afc6ff;
+$surface-container: #1d1f27;
+$surface-container-high: #272a31;
+$on-surface: #e1e2ec;
+$on-surface-variant: #c2c6d6;
+$outline: #8c909f;
+$outline-variant: #424753;
+$success: #4caf7d;
+$topbar-h: 64px;
+
+:host {
+  display: block;
+}
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+// ── Topbar ────────────────────────────────────────────────────────────────────
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: $topbar-h;
+  background: $surface-container;
+  border-bottom: 1px solid $outline-variant;
+  padding: 0 20px;
+  flex-shrink: 0;
+  z-index: 100;
+}
+
+.topbar__left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+}
+
+.topbar__logo {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: $on-surface;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &:hover {
+    text-decoration: none;
+    opacity: 0.85;
+  }
+}
+
+.topbar__conn-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba($primary, 0.07);
+  border: 1px solid $outline-variant;
+  border-radius: 20px;
+  min-width: 0;
+  max-width: 40vw;
+  overflow: hidden;
+}
+
+.topbar__conn-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: $success;
+  flex-shrink: 0;
+}
+
+.topbar__conn-text {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: $on-surface-variant;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// ── Nav ────────────────────────────────────────────────────────────────────────
+.topbar__nav {
+  display: flex;
+  gap: 2px;
+}
+
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: $on-surface-variant;
+  text-decoration: none;
+  transition: background 150ms, color 150ms;
+
+  .material-symbols-outlined {
+    font-size: 16px;
+  }
+
+  &:hover {
+    background: $surface-container-high;
+    color: $on-surface;
+    text-decoration: none;
+  }
+
+  &--active {
+    background: rgba($primary, 0.12);
+    color: $primary;
+  }
+}
+
+// ── Right ─────────────────────────────────────────────────────────────────────
+.topbar__right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.topbar__user {
+  font-size: 12px;
+  color: $outline;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar__signout {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  background: transparent;
+  border: 1px solid $outline-variant;
+  border-radius: 4px;
+  color: $on-surface-variant;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 150ms, color 150ms, background 150ms;
+  font-family: inherit;
+
+  .material-symbols-outlined {
+    font-size: 15px;
+  }
+
+  &:hover {
+    border-color: $outline;
+    color: $on-surface;
+    background: $surface-container-high;
+  }
+}
+
+// ── Content ───────────────────────────────────────────────────────────────────
+.shell__content {
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}

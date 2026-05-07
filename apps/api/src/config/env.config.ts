@@ -1,11 +1,14 @@
 import { z } from 'zod';
 
 const envSchema = z.object({
-  PORT: z
-    .string()
-    .optional()
-    .default('3000')
-    .transform((v) => parseInt(v, 10)),
+  PORT: z.preprocess(
+    (value) => (value === undefined || value === '' ? 3000 : value),
+    z.coerce
+      .number()
+      .int('PORT must be an integer')
+      .min(1, 'PORT must be greater than 0')
+      .max(65535, 'PORT must be less than or equal to 65535'),
+  ),
 
   NODE_ENV: z
     .enum(['development', 'production', 'test'])
@@ -32,6 +35,12 @@ export type AppEnv = z.infer<typeof envSchema>;
 
 let _env: AppEnv;
 
+function formatZodIssues(error: z.ZodError): string {
+  return error.issues
+    .map((issue) => `  ${issue.path.join('.')}: ${issue.message}`)
+    .join('\n');
+}
+
 /**
  * Validates and returns the parsed environment configuration.
  * In production, DATABASE_URL and CREDENTIALS_ENCRYPTION_KEY are required.
@@ -48,23 +57,33 @@ export function validateEnv(env: NodeJS.ProcessEnv = process.env): AppEnv {
       CREDENTIALS_ENCRYPTION_KEY: z
         .string()
         .min(32, 'CREDENTIALS_ENCRYPTION_KEY must be at least 32 characters'),
-      JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
+      JWT_SECRET: z
+        .string()
+        .min(32, 'JWT_SECRET must be at least 32 characters'),
+      JWT_REFRESH_SECRET: z
+        .string()
+        .min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
+      CORS_ORIGIN: z
+        .string()
+        .min(1, 'CORS_ORIGIN must not be empty')
+        .refine(
+          (value) => value !== '*',
+          'CORS_ORIGIN must be explicit in production',
+        ),
     });
     const result = productionSchema.safeParse(env);
     if (!result.success) {
-      const errors = result.error.errors
-        .map((e) => `  ${e.path.join('.')}: ${e.message}`)
-        .join('\n');
-      throw new Error(`Invalid environment configuration:\n${errors}`);
+      throw new Error(
+        `Invalid environment configuration:\n${formatZodIssues(result.error)}`,
+      );
     }
     _env = result.data as AppEnv;
   } else {
     const result = envSchema.safeParse(env);
     if (!result.success) {
-      const errors = result.error.errors
-        .map((e) => `  ${e.path.join('.')}: ${e.message}`)
-        .join('\n');
-      throw new Error(`Invalid environment configuration:\n${errors}`);
+      throw new Error(
+        `Invalid environment configuration:\n${formatZodIssues(result.error)}`,
+      );
     }
     _env = result.data;
   }

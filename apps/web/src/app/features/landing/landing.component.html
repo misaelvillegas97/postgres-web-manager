@@ -1,0 +1,165 @@
+<main class="page-main">
+  <!-- Hero Section -->
+  <section class="hero-section">
+    <div class="hero-text">
+      <h1 class="hero-title">Administra PostgreSQL desde el navegador, sin depender de clientes de escritorio.</h1>
+      <p class="hero-desc">PgStudio Gateway es un editor SQL web avanzado y un gateway de acceso que centraliza la
+        gestión de tus bases de datos. Elimina la necesidad de configuraciones locales complejas y accede a tu
+        infraestructura desde cualquier lugar con seguridad de grado empresarial.</p>
+      <div class="hero-actions">
+        <a class="btn btn--primary" routerLink="/login">Probar Cloud</a>
+        <a class="btn btn--secondary" routerLink="/self-hosted">Ver Self-Hosted</a>
+      </div>
+    </div>
+    <div class="hero-image-wrapper">
+      <img
+        alt="Dashboard Interface"
+        class="hero-image"
+        src="https://lh3.googleusercontent.com/aida-public/AB6AXuACDFxuzfWTSW_dJAIjWz_6kUuiBdKp74Lv4V43vpYIiXxZetOQKDr621v_dt_jMUKpfBYD7qlz4aa7_925jpOVTV0X0PxV-UyrWfHK5avYGWLZQ1nudqlg6O2SLlLm8MUHOQ8I3dTwzI1nCS_cSIsdNPOi2ojQGLXX0yFIZV5nDfsvVbrEhbaY-e9xZo5VJOVyjk1k1naI9sn5zATDAsGPEXHLqAzPPFhpbMfsiT_cGVE30078EIaWDHmysglPBzm7vJJETIjkEQ0m"
+      />
+    </div>
+  </section>
+
+  <!-- Por qué existe PgStudio -->
+  <section class="why-section">
+    <div class="section-header">
+      <h2 class="section-title">Por qué existe PgStudio</h2>
+      <p class="section-desc">La gestión tradicional de bases de datos requiere la instalación de clientes pesados,
+        gestión manual de credenciales locales y túneles VPN inestables. PgStudio resuelve esto centralizando el
+        acceso.</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card">
+        <span class="material-symbols-outlined feature-icon">cloud_off</span>
+        <h3 class="feature-title">Menos configuración local</h3>
+        <p class="feature-desc">Olvida instalar drivers, configurar pgbouncer localmente o lidiar con versiones
+          conflictivas de clientes. Todo funciona desde tu navegador moderno.</p>
+      </div>
+      <div class="feature-card">
+        <span class="material-symbols-outlined feature-icon">hub</span>
+        <h3 class="feature-title">Acceso Centralizado</h3>
+        <p class="feature-desc">Un único panel para gestionar múltiples clusters de PostgreSQL. Administra conexiones de
+          desarrollo, staging y producción desde un solo punto.</p>
+      </div>
+      <div class="feature-card">
+        <span class="material-symbols-outlined feature-icon">architecture</span>
+        <h3 class="feature-title">Infraestructura Flexible</h3>
+        <p class="feature-desc">Despliega el gateway directamente en tu VPC para máxima seguridad o utiliza nuestra
+          infraestructura gestionada en la nube para comenzar al instante.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Herramientas integradas -->
+  <section class="tools-section">
+    <div class="tools-list">
+      <div class="tools-list-header">
+        <h2 class="section-title">Herramientas integradas</h2>
+        <p class="section-desc">Todo lo que necesitas para interactuar con tus datos, sin cambiar de contexto.</p>
+      </div>
+      <div class="tool-items">
+        <div class="tool-item tool-item--active">
+          <span class="material-symbols-outlined tool-icon tool-icon--primary">code_blocks</span>
+          <div>
+            <h3 class="feature-title">SQL Editor Avanzado</h3>
+            <p class="tool-item-desc">Autocompletado inteligente, análisis de sintaxis en tiempo real y formateo de
+              consultas con tecnología Monaco.</p>
+          </div>
+        </div>
+        <div class="tool-item">
+          <span class="material-symbols-outlined tool-icon">account_tree</span>
+          <div>
+            <h3 class="feature-title">Explorador de Esquemas</h3>
+            <p class="tool-item-desc">Navegación visual por tablas, vistas, funciones y roles. Generación automática de
+              diagramas ER.</p>
+          </div>
+        </div>
+        <div class="tool-item">
+          <span class="material-symbols-outlined tool-icon">analytics</span>
+          <div>
+            <h3 class="feature-title">Análisis de Consultas</h3>
+            <p class="tool-item-desc">Visualización de planes de ejecución (EXPLAIN ANALYZE) para optimizar el
+              rendimiento de tus queries.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="code-editor-card">
+      <div class="code-editor-header">
+        <div class="window-dot"></div>
+        <div class="window-dot"></div>
+        <div class="window-dot"></div>
+        <span class="code-editor-filename">editor.sql</span>
+      </div>
+      <div class="code-editor-body">
+        <span class="kw">SELECT</span><br />
+        &nbsp;&nbsp;u.id,<br />
+        &nbsp;&nbsp;u.email,<br />
+        &nbsp;&nbsp;<span class="fn">COUNT</span>(o.id) <span class="kw">AS</span> total_orders<br />
+        <span class="kw">FROM</span> users u<br />
+        <span class="kw">LEFT JOIN</span> orders o <span class="kw">ON</span> u.id = o.user_id<br />
+        <span class="kw">WHERE</span> u.status = <span class="str">'active'</span><br />
+        <span class="kw">GROUP BY</span> u.id, u.email<br />
+        <span class="kw">ORDER BY</span> total_orders <span class="kw">DESC</span>;
+      </div>
+    </div>
+  </section>
+
+  <!-- Deployment model -->
+  <section class="deploy-section">
+    <h2 class="section-title deploy-title">Elige tu modelo de despliegue</h2>
+    <div class="deploy-grid">
+      <div class="deploy-card deploy-card--recommended">
+        <div class="recommended-badge">RECOMENDADO</div>
+        <div>
+          <h3 class="deploy-card-title">
+            <span class="material-symbols-outlined deploy-card-icon deploy-card-icon--primary">cloud</span>
+            Cloud
+          </h3>
+          <p class="deploy-card-desc">Infraestructura gestionada por nosotros. Listo en segundos.</p>
+        </div>
+        <ul class="deploy-features">
+          <li><span class="material-symbols-outlined check-icon check-icon--primary">check</span> Actualizaciones
+            automáticas
+          </li>
+          <li><span class="material-symbols-outlined check-icon check-icon--primary">check</span> Alta disponibilidad
+            garantizada
+          </li>
+          <li><span class="material-symbols-outlined check-icon check-icon--primary">check</span> Soporte prioritario
+          </li>
+          <li><span class="material-symbols-outlined check-icon check-icon--primary">check</span> Certificados SSL
+            automáticos
+          </li>
+        </ul>
+        <button class="btn btn--primary btn--full">Comenzar Gratis</button>
+      </div>
+      <div class="deploy-card">
+        <div>
+          <h3 class="deploy-card-title">
+            <span class="material-symbols-outlined deploy-card-icon">dns</span>
+            Self-Hosted
+          </h3>
+          <p class="deploy-card-desc">Control total. Despliega dentro de tu propia infraestructura.</p>
+        </div>
+        <ul class="deploy-features">
+          <li><span class="material-symbols-outlined check-icon">check</span> Acceso directo a VPC privada</li>
+          <li><span class="material-symbols-outlined check-icon">check</span> Cumplimiento de normativas estrictas</li>
+          <li><span class="material-symbols-outlined check-icon">check</span> Integración con tu SSO interno</li>
+          <li><span class="material-symbols-outlined check-icon">check</span> Docker, K8s, o Binario nativo</li>
+        </ul>
+        <button class="btn btn--outline btn--full">Ver Documentación</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Final CTA -->
+  <section class="cta-section">
+    <h2 class="cta-title">Empieza en cloud o despliega en tu infraestructura.</h2>
+    <p class="cta-desc">Únete a miles de desarrolladores que han simplificado la gestión de sus bases de datos
+      PostgreSQL con PgStudio Gateway.</p>
+    <div class="cta-actions">
+      <a class="btn btn--primary" routerLink="/login">Crear Cuenta Cloud</a>
+      <a class="link-subtle" routerLink="/self-hosted">Documentación Self-Hosted →</a>
+    </div>
+  </section>
+</main>

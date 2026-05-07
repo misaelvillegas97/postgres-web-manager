@@ -1,6 +1,7 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { AuditService } from './audit.service';
-import { CurrentUser, AuthenticatedUser } from '../../decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../decorators/current-user.decorator';
+import { CurrentUser } from '../../decorators/current-user.decorator';
 import { Roles } from '../../decorators/roles.decorator';
 import { UserRole } from '@postgres-web-manager/contracts';
 

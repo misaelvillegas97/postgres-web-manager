@@ -1,6 +1,8 @@
 -- Migration 001: Initial schema for PgStudio Gateway internal database
 -- Created: 2026-05-03
 
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- Workspaces (multi-tenant top-level boundary)
 CREATE TABLE IF NOT EXISTS workspaces (
   id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),

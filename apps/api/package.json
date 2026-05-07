@@ -64,7 +64,11 @@
         ],
         "options": {
           "buildTarget": "@org/api:build",
-          "runBuildTargetDependencies": false
+          "runBuildTargetDependencies": false,
+          "args": [
+            "--port=3000"
+          ],
+          "inspect": false
         },
         "configurations": {
           "development": {
@@ -74,6 +78,16 @@
             "buildTarget": "@org/api:build:production"
           }
         }
+      },
+      "test": {
+        "executor": "@nx/jest:jest",
+        "outputs": [
+          "{workspaceRoot}/test-output/api/jest/coverage"
+        ],
+        "options": {
+          "jestConfig": "apps/api/jest.config.js",
+          "passWithNoTests": false
+        }
       }
     }
   },
@@ -81,14 +95,24 @@
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/platform-socket.io": "^11.1.19",
     "@nestjs/throttler": "^6.5.0",
+    "@nestjs/websockets": "^11.1.19",
+    "jsonwebtoken": "^9.0.3",
     "pg": "^8.20.0",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.0",
-    "tslib": "^2.3.0"
+    "socket.io": "^4.8.3",
+    "sql-formatter": "^15.7.3",
+    "tslib": "^2.3.0",
+    "uuid": "^8.3.2",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@nestjs/testing": "^11.0.0",
-    "@types/pg": "^8.20.0"
+    "@types/express": "^4.17.25",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/pg": "^8.20.0",
+    "@types/uuid": "^10.0.0"
   }
 }

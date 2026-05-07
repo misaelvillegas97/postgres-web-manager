@@ -1,0 +1,531 @@
+// ── Color tokens (Material You – Stitch dark palette) ──────────────────────
+$primary: #afc6ff;
+$on-primary: #002d6c;
+$primary-fixed: #d9e2ff;
+$surface: #11131a;
+$surface-container: #1d1f27;
+$surface-container-low: #191b22;
+$surface-container-lowest: #0b0e15;
+$surface-bright: #373941;
+$on-surface: #e1e2ec;
+$on-surface-variant: #c2c6d6;
+$outline: #8c909f;
+$outline-variant: #424753;
+$tertiary: #ffb77b;
+$error: #ffb4ab;
+$background: #11131a;
+
+// ── Typography ──────────────────────────────────────────────────────────────
+$font-base: 'Inter', system-ui, sans-serif;
+$font-mono: 'JetBrains Mono', monospace;
+
+// ── Layout ───────────────────────────────────────────────────────────────────
+$section-gap: 96px;
+$gutter: 24px;
+$container-max: 1200px;
+
+// ── Radii ────────────────────────────────────────────────────────────────────
+$r: 2px;
+$r-lg: 4px;
+$r-xl: 8px;
+
+// ═══════════════════════════════════════════════════════════════════════════
+:host {
+  display: block;
+  background: $background;
+  color: $on-surface;
+  font-family: $font-base;
+  -webkit-font-smoothing: antialiased;
+}
+
+// ── Container ────────────────────────────────────────────────────────────────
+.container {
+  max-width: $container-max;
+  margin: 0 auto;
+  padding: 0 $gutter;
+}
+
+// ── Main ────────────────────────────────────────────────────────────────────
+.page-main {
+  max-width: $container-max;
+  margin: 0 auto;
+  padding: $section-gap $gutter;
+  display: flex;
+  flex-direction: column;
+  gap: 140px;
+}
+
+// ── Hero ─────────────────────────────────────────────────────────────────────
+.hero-section {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+  align-items: center;
+
+  @media (min-width: 1024px) {
+    grid-template-columns: 5fr 7fr;
+  }
+}
+
+.hero-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.hero-title {
+  font-size: 24px;
+  line-height: 32px;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+  color: $on-surface;
+  margin: 0;
+}
+
+.hero-desc {
+  font-size: 14px;
+  line-height: 20px;
+  color: $on-surface-variant;
+  max-width: 28rem;
+  margin: 0;
+}
+
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 1rem;
+}
+
+.hero-image-wrapper {
+  background: $surface-container-low;
+  border: 1px solid $outline-variant;
+  border-radius: $r-xl;
+  overflow: hidden;
+  padding: 8px;
+}
+
+.hero-image {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: $r-lg;
+  border: 1px solid rgba($outline-variant, 0.5);
+}
+
+// ── Buttons ──────────────────────────────────────────────────────────────────
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 12px 24px;
+  border-radius: $r;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  transition: background 200ms, border-color 200ms;
+
+  &--primary {
+    background: $primary;
+    color: $on-primary;
+
+    &:hover {
+      background: $primary-fixed;
+    }
+  }
+
+  &--secondary {
+    border: 1px solid $outline-variant;
+    color: $on-surface;
+    background: transparent;
+
+    &:hover {
+      border-color: $outline;
+      background: $surface-container;
+    }
+  }
+
+  &--outline {
+    border: 1px solid $outline-variant;
+    background: transparent;
+    color: $on-surface;
+
+    &:hover {
+      background: $surface-bright;
+    }
+  }
+
+  &--full {
+    width: 100%;
+    margin-top: auto;
+    padding: 8px;
+  }
+}
+
+// ── Section commons ─────────────────────────────────────────────────────────
+.section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.section-title {
+  font-size: 20px;
+  line-height: 28px;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+  color: $on-surface;
+  margin: 0;
+}
+
+.section-desc {
+  font-size: 14px;
+  line-height: 20px;
+  color: $on-surface-variant;
+  max-width: 42rem;
+  margin: 0;
+}
+
+// ── Why section ──────────────────────────────────────────────────────────────
+.why-section {
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.feature-card {
+  background: $surface-container;
+  border: 1px solid $outline-variant;
+  padding: 1.5rem;
+  border-radius: $r-lg;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transition: border-color 200ms;
+
+  &:hover {
+    border-color: rgba($primary, 0.5);
+  }
+}
+
+.feature-icon {
+  color: $primary;
+  font-size: 24px;
+}
+
+.feature-title {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+  color: $on-surface;
+  margin: 0;
+}
+
+.feature-desc {
+  font-size: 13px;
+  line-height: 18px;
+  color: $on-surface-variant;
+  margin: 0;
+}
+
+// ── Tools section ─────────────────────────────────────────────────────────────
+.tools-section {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 3rem;
+  align-items: start;
+
+  @media (min-width: 1024px) {
+    grid-template-columns: 5fr 7fr;
+  }
+}
+
+.tools-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.tools-list-header {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.tool-items {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.tool-item {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 1rem;
+  border: 1px solid rgba($outline-variant, 0.5);
+  border-radius: $r;
+  transition: border-color 200ms;
+
+  &:hover {
+    border-color: $outline-variant;
+  }
+
+  &--active {
+    border-color: rgba($primary, 0.2);
+    background: rgba($primary, 0.05);
+  }
+}
+
+.tool-icon {
+  color: $on-surface-variant;
+  margin-top: 2px;
+  flex-shrink: 0;
+
+  &--primary {
+    color: $primary;
+  }
+}
+
+.tool-item-desc {
+  font-size: 13px;
+  line-height: 18px;
+  color: $on-surface-variant;
+  margin: 4px 0 0;
+}
+
+// ── Code editor ──────────────────────────────────────────────────────────────
+.code-editor-card {
+  background: $surface-container-low;
+  border: 1px solid $outline-variant;
+  border-radius: $r-xl;
+  overflow: hidden;
+  padding: 1rem;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.code-editor-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid $outline-variant;
+  padding-bottom: 8px;
+  margin-bottom: 1rem;
+}
+
+.window-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba($outline-variant, 0.5);
+}
+
+.code-editor-filename {
+  font-family: $font-mono;
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 500;
+  color: $on-surface-variant;
+  margin-left: 8px;
+}
+
+.code-editor-body {
+  flex-grow: 1;
+  background: $surface-container-lowest;
+  border: 1px solid rgba($outline-variant, 0.3);
+  border-radius: $r;
+  padding: 1rem;
+  font-family: $font-mono;
+  font-size: 13px;
+  line-height: 20px;
+
+  .kw {
+    color: $primary;
+  }
+
+  .fn {
+    color: $tertiary;
+  }
+
+  .str {
+    color: $error;
+  }
+}
+
+// ── Deploy section ────────────────────────────────────────────────────────────
+.deploy-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.deploy-title {
+  text-align: center;
+}
+
+.deploy-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  max-width: 56rem;
+  margin: 0 auto;
+  width: 100%;
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.deploy-card {
+  background: $surface-container;
+  border: 1px solid $outline-variant;
+  padding: 2rem;
+  border-radius: $r-lg;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  position: relative;
+  transition: border-color 200ms;
+
+  &:hover {
+    border-color: $outline;
+  }
+
+  &--recommended {
+    border-color: $primary;
+  }
+}
+
+.recommended-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: $primary;
+  color: $on-primary;
+  font-family: $font-mono;
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 500;
+  padding: 4px 12px;
+  border-bottom-left-radius: $r-lg;
+  border-top-right-radius: $r-lg;
+}
+
+.deploy-card-title {
+  font-size: 24px;
+  line-height: 32px;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+  color: $on-surface;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.deploy-card-icon {
+  color: $on-surface-variant;
+
+  &--primary {
+    color: $primary;
+  }
+}
+
+.deploy-card-desc {
+  color: $on-surface-variant;
+  font-size: 13px;
+  line-height: 18px;
+  margin: 8px 0 0;
+}
+
+.deploy-features {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 13px;
+  line-height: 18px;
+  color: $on-surface-variant;
+  border-top: 1px solid $outline-variant;
+  padding-top: 24px;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+.check-icon {
+  font-size: 16px;
+  color: $on-surface;
+
+  &--primary {
+    color: $primary;
+  }
+}
+
+// ── CTA section ───────────────────────────────────────────────────────────────
+.cta-section {
+  background: $surface-container;
+  border: 1px solid $outline-variant;
+  border-radius: $r-xl;
+  padding: 3rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.cta-title {
+  font-size: 24px;
+  line-height: 32px;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+  color: $on-surface;
+  margin: 0;
+}
+
+.cta-desc {
+  font-size: 14px;
+  line-height: 20px;
+  color: $on-surface-variant;
+  max-width: 32rem;
+  margin: 0;
+}
+
+.cta-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.link-subtle {
+  font-size: 13px;
+  font-weight: 500;
+  color: $on-surface-variant;
+  text-decoration: none;
+  transition: color 200ms;
+
+  &:hover {
+    color: $on-surface;
+  }
+}

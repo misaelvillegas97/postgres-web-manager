@@ -1,0 +1,261 @@
+<div class="page-content">
+  <!-- Hero -->
+  <section class="page-hero">
+    <div class="container">
+      <div class="badge-chip">
+        <span class="material-symbols-outlined">rocket_launch</span>
+        Deploy
+      </div>
+      <h1 class="page-hero__title">Despliega en cualquier lugar.</h1>
+      <p class="page-hero__desc">
+        PgStudio Gateway funciona en Docker, Kubernetes, Railway, Fly.io, Vercel + API externa, o cualquier VPS con
+        Docker instalado.
+        Elige la plataforma que mejor se adapte a tu infraestructura.
+      </p>
+    </div>
+  </section>
+
+  <!-- Platform cards -->
+  <section class="section">
+    <div class="container">
+
+      <!-- Docker Compose self-contained -->
+      <div class="platform-card">
+        <div class="platform-card__meta">
+          <div class="platform-icon">
+            <span class="material-symbols-outlined">view_in_ar</span>
+          </div>
+          <div>
+            <h2 class="platform-name">Docker Compose — Stack completo</h2>
+            <p class="platform-desc">La opción recomendada para self-hosted. Levanta nginx, API y una base de datos de
+              metadatos PostgreSQL en red interna.</p>
+          </div>
+          <span class="platform-badge">RECOMENDADO</span>
+        </div>
+        <div class="code-block">
+          <div class="code-block__bar">
+            <span class="code-block__dot"></span><span class="code-block__dot"></span><span
+            class="code-block__dot"></span>
+            <span class="code-block__title">docker-compose.yml</span>
+          </div>
+          <pre class="code-block__body"><span class="cm"># Copia y configura las variables de entorno</span>
+cp .env.production.example .env.production
+
+<span class="cm"># Levanta el stack</span>
+docker compose --env-file .env.production \
+  -f docker/docker-compose.yml up -d --build
+
+<span class="cm"># Con base de datos de metadatos externa</span>
+docker compose --env-file .env.production \
+  -f docker/docker-compose.external-db.yml up -d --build</pre>
+        </div>
+      </div>
+
+      <!-- All-in-one container -->
+      <div class="platform-card">
+        <div class="platform-card__meta">
+          <div class="platform-icon">
+            <span class="material-symbols-outlined">deployed_code</span>
+          </div>
+          <div>
+            <h2 class="platform-name">Contenedor All-in-One</h2>
+            <p class="platform-desc">Una única imagen Docker que incluye nginx, API y la Angular app. Ideal para PaaS
+              como Railway o Fly.io.</p>
+          </div>
+        </div>
+        <div class="code-block">
+          <div class="code-block__bar">
+            <span class="code-block__dot"></span><span class="code-block__dot"></span><span
+            class="code-block__dot"></span>
+            <span class="code-block__title">all-in-one.Dockerfile</span>
+          </div>
+          <pre class="code-block__body"><span class="cm"># Construir imagen</span>
+docker build -f docker/all-in-one.Dockerfile \
+  -t pgstudio/all-in-one:local .
+
+<span class="cm"># Ejecutar localmente</span>
+docker run --rm -p 8080:8080 \
+  -e NODE_ENV=production \
+  -e DATABASE_URL="postgresql://user:password&#64;host:5432/pgstudio" \
+  -e JWT_SECRET="replace-with-32-plus-random-chars" \
+  -e JWT_REFRESH_SECRET="replace-with-other-32-plus-random-chars" \
+  -e CREDENTIALS_ENCRYPTION_KEY="replace-with-32-plus-random-chars" \
+  -e CORS_ORIGIN="http://localhost:8080" \
+  pgstudio/all-in-one:local</pre>
+        </div>
+      </div>
+
+      <!-- Railway -->
+      <div class="platform-card">
+        <div class="platform-card__meta">
+          <div class="platform-icon platform-icon--railway">
+            <span class="material-symbols-outlined">train</span>
+          </div>
+          <div>
+            <h2 class="platform-name">Railway</h2>
+            <p class="platform-desc">Un servicio PgStudio (all-in-one) más un servicio PostgreSQL de Railway para los
+              metadatos internos.</p>
+          </div>
+        </div>
+        <div class="code-block">
+          <div class="code-block__bar">
+            <span class="code-block__dot"></span><span class="code-block__dot"></span><span
+            class="code-block__dot"></span>
+            <span class="code-block__title">railway.json + variables</span>
+          </div>
+          <pre class="code-block__body"><span class="cm"># 1. Crea un servicio PostgreSQL en Railway</span>
+<span class="cm"># 2. Crea un servicio desde este repositorio</span>
+<span class="cm"># 3. Usa deploy/railway/railway.json como Config as Code</span>
+<span class="cm"># 4. Configura las variables en el servicio PgStudio:</span>
+
+NODE_ENV=production
+API_PORT=3000
+DATABASE_URL=${{ '${{Postgres.DATABASE_URL}}' }}
+            JWT_SECRET=&lt;64+ random chars&gt;
+JWT_REFRESH_SECRET=&lt;different 64+ random chars&gt;
+CREDENTIALS_ENCRYPTION_KEY=&lt;64+ random chars&gt;
+CORS_ORIGIN=https://&lt;your-railway-domain&gt;</pre>
+        </div>
+      </div>
+
+      <!-- Fly.io -->
+      <div class="platform-card">
+        <div class="platform-card__meta">
+          <div class="platform-icon platform-icon--fly">
+            <span class="material-symbols-outlined">flight</span>
+          </div>
+          <div>
+            <h2 class="platform-name">Fly.io</h2>
+            <p class="platform-desc">Despliegue global en edge con auto-start/stop. Usa el all-in-one Dockerfile y
+              adjunta una base de datos de Fly Postgres.</p>
+          </div>
+        </div>
+        <div class="code-block">
+          <div class="code-block__bar">
+            <span class="code-block__dot"></span><span class="code-block__dot"></span><span
+            class="code-block__dot"></span>
+            <span class="code-block__title">fly.toml</span>
+          </div>
+          <pre class="code-block__body"><span class="cm"># Copia y ajusta el nombre de app</span>
+cp deploy/fly/fly.toml.example fly.toml
+
+<span class="cm"># Crea y adjunta la base de datos de metadatos</span>
+fly postgres create
+fly postgres attach &lt;postgres-app-name&gt;
+
+<span class="cm"># Configura los secretos</span>
+fly secrets set \
+  JWT_SECRET=&lt;random&gt; \
+  JWT_REFRESH_SECRET=&lt;random&gt; \
+  CREDENTIALS_ENCRYPTION_KEY=&lt;random&gt;
+
+<span class="cm"># Despliega</span>
+fly deploy -c deploy/fly/fly.toml</pre>
+        </div>
+        <div class="toml-preview">
+          <div class="toml-preview__label">fly.toml.example</div>
+          <pre class="toml-preview__body">app = "pgstudio"
+primary_region = "mad"
+
+[build]
+  dockerfile = "docker/all-in-one.Dockerfile"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  min_machines_running = 1
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 1024</pre>
+        </div>
+      </div>
+
+      <!-- Vercel (frontend only) -->
+      <div class="platform-card">
+        <div class="platform-card__meta">
+          <div class="platform-icon platform-icon--vercel">
+            <span class="material-symbols-outlined">layers</span>
+          </div>
+          <div>
+            <h2 class="platform-name">Vercel (solo frontend)</h2>
+            <p class="platform-desc">
+              Vercel sirve únicamente el frontend Angular. El API debe correr en un backend persistente (Railway,
+              Fly.io, Docker Compose, VPS).
+            </p>
+          </div>
+          <div class="platform-warning">
+            <span class="material-symbols-outlined">warning</span>
+            API requerida por separado
+          </div>
+        </div>
+        <div class="code-block">
+          <div class="code-block__bar">
+            <span class="code-block__dot"></span><span class="code-block__dot"></span><span
+            class="code-block__dot"></span>
+            <span class="code-block__title">vercel.json</span>
+          </div>
+          <pre class="code-block__body"><span
+            class="cm"># 1. Despliega el API en Railway, Fly.io o Docker Compose</span>
+<span class="cm"># 2. Copia vercel.json.example y reemplaza el host del API</span>
+cp deploy/vercel/vercel.json.example vercel.json
+
+<span class="cm"># 3. Importa el repositorio en Vercel</span>
+<span class="cm"># 4. Vercel reescribe /api/* y /socket.io/* al API externo</span></pre>
+        </div>
+      </div>
+
+      <!-- Kubernetes / Helm -->
+      <div class="platform-card">
+        <div class="platform-card__meta">
+          <div class="platform-icon platform-icon--k8s">
+            <span class="material-symbols-outlined">hub</span>
+          </div>
+          <div>
+            <h2 class="platform-name">Kubernetes / Helm</h2>
+            <p class="platform-desc">Chart Helm en <code>deploy/helm/pgstudio</code>. Despliega API, web y opcionalmente
+              PostgreSQL con Ingress configurable.</p>
+          </div>
+        </div>
+        <div class="code-block">
+          <div class="code-block__bar">
+            <span class="code-block__dot"></span><span class="code-block__dot"></span><span
+            class="code-block__dot"></span>
+            <span class="code-block__title">helm install</span>
+          </div>
+          <pre class="code-block__body"><span class="cm"># Con base de datos interna</span>
+helm upgrade --install pgstudio deploy/helm/pgstudio \
+  --set secrets.jwtSecret="$(node -e "...")"\ 
+  --set secrets.jwtRefreshSecret="$(node -e "...")"\ 
+  --set secrets.credentialsEncryptionKey="$(node -e "...")"\ 
+  --set postgres.auth.password="$(node -e "...")"
+
+<span class="cm"># Con base de datos de metadatos externa</span>
+helm upgrade --install pgstudio deploy/helm/pgstudio \
+  --set postgres.enabled=false \
+  --set secrets.databaseUrl="postgresql://..." \
+  --set config.corsOrigin="https://pgstudio.example.com" \
+  --set ingress.enabled=true \
+  --set ingress.host="pgstudio.example.com"</pre>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="section">
+    <div class="container">
+      <div class="cta-box">
+        <h2 class="cta-title">¿Necesitas el modo Self-Hosted detallado?</h2>
+        <p class="cta-desc">Variables de entorno, arquitectura de servicios e instaladores automáticos.</p>
+        <div class="cta-actions">
+          <a class="btn btn--primary" routerLink="/self-hosted">Guía Self-Hosted</a>
+          <a class="btn btn--outline" routerLink="/docs">Documentación completa</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>

@@ -1,0 +1,187 @@
+<div class="page-content">
+  <!-- Hero -->
+  <section class="page-hero">
+    <div class="container">
+      <div class="badge-chip">
+        <span class="material-symbols-outlined">book</span>
+        Documentación
+      </div>
+      <h1 class="page-hero__title">Todo lo que necesitas para empezar.</h1>
+      <p class="page-hero__desc">
+        Desde la instalación hasta la configuración avanzada. Referencia completa de la arquitectura, variables de
+        entorno y módulos de la plataforma.
+      </p>
+      <a class="btn btn--primary" href="https://github.com/misaelvillegas97/postgres-web-manager"
+         rel="noopener noreferrer"
+         target="_blank">Ver en GitHub</a>
+    </div>
+  </section>
+
+  <!-- Docs grid -->
+  <section class="section">
+    <div class="container">
+      <div class="docs-grid">
+
+        <a class="doc-card" routerLink="/self-hosted">
+          <span class="material-symbols-outlined doc-icon">rocket_launch</span>
+          <div>
+            <h3 class="doc-title">Primeros pasos</h3>
+            <p class="doc-desc">Instala PgStudio con Docker Compose o el instalador automático. Listo en minutos.</p>
+          </div>
+          <span class="material-symbols-outlined doc-arrow">arrow_forward</span>
+        </a>
+
+        <a class="doc-card" routerLink="/deploy">
+          <span class="material-symbols-outlined doc-icon">deployed_code</span>
+          <div>
+            <h3 class="doc-title">Opciones de despliegue</h3>
+            <p class="doc-desc">Docker Compose, all-in-one, Railway, Fly.io, Vercel y Kubernetes/Helm.</p>
+          </div>
+          <span class="material-symbols-outlined doc-arrow">arrow_forward</span>
+        </a>
+
+        <div class="doc-card doc-card--static">
+          <span class="material-symbols-outlined doc-icon">settings</span>
+          <div>
+            <h3 class="doc-title">Configuración</h3>
+            <p class="doc-desc">Variables de entorno requeridas: DATABASE_URL, JWT_SECRET, CREDENTIALS_ENCRYPTION_KEY,
+              CORS_ORIGIN y más.</p>
+          </div>
+        </div>
+
+        <div class="doc-card doc-card--static">
+          <span class="material-symbols-outlined doc-icon">architecture</span>
+          <div>
+            <h3 class="doc-title">Arquitectura</h3>
+            <p class="doc-desc">El navegador nunca conecta directamente a PostgreSQL. Todo pasa por el gateway NestJS
+              vía HTTPS/WebSocket.</p>
+          </div>
+        </div>
+
+        <div class="doc-card doc-card--static">
+          <span class="material-symbols-outlined doc-icon">code_blocks</span>
+          <div>
+            <h3 class="doc-title">Editor SQL</h3>
+            <p class="doc-desc">Monaco Editor con autocompletado, resaltado de sintaxis, múltiples pestañas, historial y
+              análisis de consultas.</p>
+          </div>
+        </div>
+
+        <div class="doc-card doc-card--static">
+          <span class="material-symbols-outlined doc-icon">account_tree</span>
+          <div>
+            <h3 class="doc-title">Explorador de esquemas</h3>
+            <p class="doc-desc">Navega tablas, vistas, funciones e índices. Genera DDL automáticamente desde la interfaz
+              visual.</p>
+          </div>
+        </div>
+
+        <div class="doc-card doc-card--static">
+          <span class="material-symbols-outlined doc-icon">analytics</span>
+          <div>
+            <h3 class="doc-title">Analizador de consultas</h3>
+            <p class="doc-desc">Visualización de EXPLAIN / EXPLAIN ANALYZE. Planning time, execution time y plan
+              completo de ejecución.</p>
+          </div>
+        </div>
+
+        <div class="doc-card doc-card--static">
+          <span class="material-symbols-outlined doc-icon">table_chart</span>
+          <div>
+            <h3 class="doc-title">Diseñador de tablas</h3>
+            <p class="doc-desc">Crea y modifica tablas visualmente. Genera sentencias DDL para CREATE TABLE, ALTER TABLE
+              y más.</p>
+          </div>
+        </div>
+
+        <div class="doc-card doc-card--static">
+          <span class="material-symbols-outlined doc-icon">admin_panel_settings</span>
+          <div>
+            <h3 class="doc-title">Autenticación y permisos</h3>
+            <p class="doc-desc">JWT con refresh tokens. RBAC con 4 niveles: OWNER, ADMIN, DEVELOPER, READ_ONLY. Rate
+              limiting incluido.</p>
+          </div>
+        </div>
+
+        <div class="doc-card doc-card--static">
+          <span class="material-symbols-outlined doc-icon">receipt_long</span>
+          <div>
+            <h3 class="doc-title">Auditoría</h3>
+            <p class="doc-desc">Log completo de escrituras y operaciones DDL. Cada acción queda registrada con usuario,
+              timestamp y query.</p>
+          </div>
+        </div>
+
+        <div class="doc-card doc-card--static">
+          <span class="material-symbols-outlined doc-icon">encrypted</span>
+          <div>
+            <h3 class="doc-title">Seguridad de credenciales</h3>
+            <p class="doc-desc">Las contraseñas de conexión se cifran con AES-GCM en el servidor. La clave es <code>CREDENTIALS_ENCRYPTION_KEY</code>.
+            </p>
+          </div>
+        </div>
+
+        <div class="doc-card doc-card--static">
+          <span class="material-symbols-outlined doc-icon">share</span>
+          <div>
+            <h3 class="doc-title">API Reference</h3>
+            <p class="doc-desc">Todos los endpoints NestJS expuestos bajo <code>/api/*</code>. Auth, conexiones,
+              queries, metadata, DDL y sesiones WebSocket.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Stack reference -->
+  <section class="section">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Stack tecnológico</h2>
+      </div>
+      <div class="stack-grid">
+        <div class="stack-col">
+          <h4 class="stack-col__title">Frontend (apps/web)</h4>
+          <ul class="stack-list">
+            <li><span class="chip">Angular 21</span> Standalone components + Signals</li>
+            <li><span class="chip">Monaco Editor</span> SQL editing engine</li>
+            <li><span class="chip">SCSS</span> Component-scoped + global tokens</li>
+            <li><span class="chip">TypeScript</span> Strict mode</li>
+          </ul>
+        </div>
+        <div class="stack-col">
+          <h4 class="stack-col__title">Backend (apps/api)</h4>
+          <ul class="stack-list">
+            <li><span class="chip">NestJS 11</span> Gateway modular</li>
+            <li><span class="chip">node-postgres</span> Conexiones TCP a PostgreSQL</li>
+            <li><span class="chip">Socket.IO</span> WebSocket para streaming de resultados</li>
+            <li><span class="chip">JWT</span> Access 1h + Refresh 7d</li>
+            <li><span class="chip">AES-GCM</span> Cifrado de credenciales</li>
+          </ul>
+        </div>
+        <div class="stack-col">
+          <h4 class="stack-col__title">Contratos (libs/contracts)</h4>
+          <ul class="stack-list">
+            <li><span class="chip">DTOs compartidos</span> auth, connections, query</li>
+            <li><span class="chip">Enums</span> Roles, risk levels</li>
+            <li><span class="chip">Interfaces</span> metadata, ddl, explain, sessions</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="section">
+    <div class="container">
+      <div class="cta-box">
+        <h2 class="cta-title">¿Prefieres explorar el código?</h2>
+        <p class="cta-desc">El repositorio está completamente abierto en GitHub. PRs y issues bienvenidos.</p>
+        <a class="btn btn--primary" href="https://github.com/misaelvillegas97/postgres-web-manager"
+           rel="noopener noreferrer"
+           target="_blank">Ver en GitHub</a>
+      </div>
+    </div>
+  </section>
+</div>

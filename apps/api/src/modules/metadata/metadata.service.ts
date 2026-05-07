@@ -11,15 +11,22 @@ import {
   TableDetail,
 } from '@postgres-web-manager/contracts';
 import { PostgresPoolManager } from '../../postgres/postgres-pool.manager';
+import { ConnectionsService } from '../connections/connections.service';
 
 type DbRow = Record<string, unknown>;
 
 @Injectable()
 export class MetadataService {
-  constructor(private readonly poolManager: PostgresPoolManager) {}
+  constructor(
+    private readonly poolManager: PostgresPoolManager,
+    private readonly connectionsService: ConnectionsService,
+  ) {}
 
-  async getSchemas(connectionId: string): Promise<DbSchema[]> {
-    const client = await this.getClient(connectionId);
+  async getSchemas(
+    connectionId: string,
+    workspaceId?: string,
+  ): Promise<DbSchema[]> {
+    const client = await this.getClient(connectionId, workspaceId);
     try {
       const { rows } = await client.query<DbRow>(
         `SELECT schema_name AS name, schema_owner AS owner
@@ -29,15 +36,22 @@ export class MetadataService {
            AND schema_name NOT LIKE 'pg_toast_temp_%'
          ORDER BY schema_name`,
       );
-      return rows.map((r) => ({ name: r['name'] as string, owner: r['owner'] as string }));
+      return rows.map((r) => ({
+        name: r['name'] as string,
+        owner: r['owner'] as string,
+      }));
     } finally {
       client.release();
     }
   }
 
-  async getTables(connectionId: string, schema: string): Promise<DbTable[]> {
+  async getTables(
+    connectionId: string,
+    schema: string,
+    workspaceId?: string,
+  ): Promise<DbTable[]> {
     this.validateIdentifier(schema, 'schema');
-    const client = await this.getClient(connectionId);
+    const client = await this.getClient(connectionId, workspaceId);
     try {
       const { rows } = await client.query<DbRow>(
         `SELECT
@@ -89,10 +103,11 @@ export class MetadataService {
     connectionId: string,
     schema: string,
     table: string,
+    workspaceId?: string,
   ): Promise<TableDetail> {
     this.validateIdentifier(schema, 'schema');
     this.validateIdentifier(table, 'table');
-    const client = await this.getClient(connectionId);
+    const client = await this.getClient(connectionId, workspaceId);
 
     try {
       // Columns
@@ -239,15 +254,26 @@ export class MetadataService {
         onDelete: r['on_delete'] as string,
       }));
 
-      return { schema, name: table, columns, indexes, constraints, foreignKeys };
+      return {
+        schema,
+        name: table,
+        columns,
+        indexes,
+        constraints,
+        foreignKeys,
+      };
     } finally {
       client.release();
     }
   }
 
-  async getFunctions(connectionId: string, schema: string): Promise<DbFunction[]> {
+  async getFunctions(
+    connectionId: string,
+    schema: string,
+    workspaceId?: string,
+  ): Promise<DbFunction[]> {
     this.validateIdentifier(schema, 'schema');
-    const client = await this.getClient(connectionId);
+    const client = await this.getClient(connectionId, workspaceId);
     try {
       const { rows } = await client.query<DbRow>(
         `SELECT
@@ -281,8 +307,11 @@ export class MetadataService {
     }
   }
 
-  async getExtensions(connectionId: string): Promise<DbExtension[]> {
-    const client = await this.getClient(connectionId);
+  async getExtensions(
+    connectionId: string,
+    workspaceId?: string,
+  ): Promise<DbExtension[]> {
+    const client = await this.getClient(connectionId, workspaceId);
     try {
       const { rows } = await client.query<DbRow>(
         `SELECT
@@ -306,7 +335,9 @@ export class MetadataService {
     }
   }
 
-  private async getClient(connectionId: string) {
+  private async getClient(connectionId: string, workspaceId?: string) {
+    await this.ensureConnectionAccess(connectionId, workspaceId);
+
     if (!this.poolManager.hasPool(connectionId)) {
       throw new UnprocessableEntityException(
         `No active pool for connection ${connectionId}. ` +
@@ -314,6 +345,14 @@ export class MetadataService {
       );
     }
     return this.poolManager.getClient(connectionId);
+  }
+
+  private async ensureConnectionAccess(
+    connectionId: string,
+    workspaceId?: string,
+  ): Promise<void> {
+    if (!workspaceId) return;
+    await this.connectionsService.findOne(connectionId, workspaceId);
   }
 
   /** Validates that an identifier contains only safe characters to prevent injection. */

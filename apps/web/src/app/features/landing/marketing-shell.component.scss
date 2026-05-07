@@ -1,0 +1,184 @@
+// ── Color tokens (Material You – Stitch dark palette) ──────────────────────
+$primary: #afc6ff;
+$on-primary: #002d6c;
+$primary-fixed: #d9e2ff;
+$surface: #11131a;
+$surface-container: #1d1f27;
+$on-surface: #e1e2ec;
+$on-surface-variant: #c2c6d6;
+$outline: #8c909f;
+$outline-variant: #424753;
+
+$font-base: 'Inter', system-ui, sans-serif;
+$container-max: 1200px;
+$gutter: 24px;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: $surface;
+  color: $on-surface;
+  font-family: $font-base;
+  -webkit-font-smoothing: antialiased;
+}
+
+// ── Container ────────────────────────────────────────────────────────────────
+.container {
+  max-width: $container-max;
+  margin: 0 auto;
+  padding: 0 $gutter;
+}
+
+// ── Header ────────────────────────────────────────────────────────────────────
+.site-header {
+  background: $surface;
+  border-bottom: 1px solid $outline-variant;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  width: 100%;
+}
+
+.header-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 64px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.site-logo {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: $on-surface;
+  text-decoration: none;
+  white-space: nowrap;
+
+  &:hover {
+    text-decoration: none;
+    opacity: 0.85;
+  }
+}
+
+.header-nav {
+  display: none;
+  align-items: center;
+
+  @media (min-width: 768px) {
+    display: flex;
+  }
+}
+
+.nav-link {
+  font-size: 14px;
+  color: $on-surface-variant;
+  text-decoration: none;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border-bottom: 2px solid transparent;
+  transition: color 200ms, background 200ms;
+
+  &:hover {
+    color: $on-surface;
+    background: $surface-container;
+    text-decoration: none;
+  }
+
+  &--active {
+    color: $primary;
+    font-weight: 600;
+    border-bottom-color: $primary;
+  }
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.link-github {
+  font-size: 13px;
+  color: $on-surface-variant;
+  text-decoration: none;
+  transition: color 200ms;
+
+  &:hover {
+    color: $on-surface;
+    text-decoration: none;
+  }
+}
+
+.btn-try-cloud {
+  background: $primary;
+  color: $on-primary;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 2px;
+  text-decoration: none;
+  transition: background 200ms;
+
+  &:hover {
+    background: $primary-fixed;
+    text-decoration: none;
+  }
+}
+
+// ── Footer ─────────────────────────────────────────────────────────────────────
+.site-footer {
+  background: $surface-container;
+  border-top: 1px solid $outline-variant;
+  width: 100%;
+  margin-top: auto;
+}
+
+.footer-inner {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2rem $gutter;
+  gap: 1rem;
+
+  @media (min-width: 768px) {
+    flex-direction: row;
+  }
+}
+
+.footer-brand {
+  font-size: 14px;
+  font-weight: 600;
+  color: $on-surface;
+}
+
+.footer-copy {
+  font-size: 12px;
+  color: $outline;
+}
+
+.footer-links {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.footer-link {
+  font-size: 12px;
+  color: $on-surface-variant;
+  text-decoration: none;
+  transition: color 200ms;
+
+  &:hover {
+    color: $on-surface;
+    text-decoration: none;
+  }
+}

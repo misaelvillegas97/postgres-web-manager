@@ -34,10 +34,12 @@ Avance YYYY-MM-DD:
 
 ## Snapshot actual del proyecto
 
-> **Actualizado:** 2026-05-03 — **Todas las fases 0–8 completas** ✓ | Builds ✓ | 47 unit tests pasan ✓
+> **Actualizado:** 2026-05-06 — **Todas las fases 0–8 completas** ✓ | Build/lint/typecheck/test ✓ | API e2e ✓ | Web e2e
+> ✓
 
 - **Backend** — Fase 0–7 implementadas. Todos los servicios funcionales y seguros.
-  - `AuthService`: JWT real (access 1h + refresh 7d), mock users dev mode.
+  - `AuthService`: usuarios DB-backed con `password_hash`, JWT real (access 1h + refresh 7d) y refresh tokens
+    persistidos como hashes.
   - `ConnectionsService`: CRUD DB-backed, workspace isolation, cifrado AES-256-GCM, unlock/lock pool.
   - `QueryService`: execute + cancel + history + read-only enforcement + audit logging.
   - `ExplainService`: EXPLAIN FORMAT JSON + parsePlanNode.
@@ -45,7 +47,7 @@ Avance YYYY-MM-DD:
   - `TableDataService`: read paginado + previewChanges + applyChanges transaccional + read-only guard.
   - `DdlService`: CREATE/ALTER TABLE con preview SQL + read-only guard.
   - `AuditService`: log() + findAll() paginado, resiliente a fallos DB.
-  - `SessionsGateway`: WS `/`, JWT auth en handshake, streaming por batches, pg_cancel_backend.
+  - `SessionsGateway`: WS `/sessions`, JWT auth en handshake, streaming por batches, pg_cancel_backend.
 - **Seguridad** (Fase 7): `JwtAuthGuard` global + `@Public()`, `RolesGuard` (OWNER>ADMIN>DEVELOPER>READ_ONLY), `ThrottlerGuard` (300 req/min), workspace isolation completo.
 - **Observabilidad** (Fase 8): `LoggingInterceptor` JSON estructurado con `x-request-id`, health check `GET /api/health` con verificación DB real.
 - **Frontend** (Fases 2–6): Angular 21 standalone components + signals.
@@ -55,8 +57,13 @@ Avance YYYY-MM-DD:
   - Table Browser editable (paginación, filtros, inline edit, apply transaccional).
   - Table Designer visual (Create + Alter modes).
   - Query Analyzer (PlanTree colapsable, badges de advertencia, resumen de costos).
-- **Tests**: 47 unit tests pasan (`audit.service`, `connections.service`, `sql-risk.classifier`).
-- **CI**: `.github/workflows/ci.yml` con servicio Postgres embedded, sin dependencia Nx Cloud.
+- **Tests**: unit/e2e pasan con Nx (`web`, `@org/api-e2e`, `web-e2e`).
+  - `@org/api:test`: 48 tests unitarios.
+  - `@org/api-e2e:e2e`: 17 tests.
+  - `web-e2e:e2e`: 9 tests en Chromium/Firefox/WebKit.
+- **Continuación 2026-05-06**: se corrigió refresh frontend para `/auth/me`, se reemplazó el e2e web de humo por flujos
+  login/guard/error, y `ConnectionsService.test()` usa pools temporales únicos por request.
+- **CI**: `.github/workflows/ci.yml` con servicio Postgres embedded, sin dependencia Nx Cloud y sin `|| true` en e2e.
 - **Docker**: `docker-compose.yml` (prod) + `docker-compose.dev.yml` (dev hot-reload) + Dockerfiles multi-stage.
 - **Documentación**: README completo con env vars, modelo de seguridad, guía de despliegue.
 
@@ -231,14 +238,14 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
 - [x] `npm exec nx build @org/api` → exit 0.
 - [x] 47/47 unit tests pasan (sql-risk.classifier + audit.service + connections.service).
 - [x] `apps/api-e2e/src/api/api.spec.ts` con tests reales (auth, connections, queries, metadata, table-data).
-- [ ] `npm exec nx e2e @org/api-e2e` → requiere servidor + db-seed (T-111 pendiente).
+- [x] `npm exec nx e2e @org/api-e2e` → 17/17 pruebas pasan con servidor + migraciones.
 - [x] WS SessionsGateway implementado (JWT auth en handshake, streaming, cancel).
 
 ---
 
 ## 0. Gestión del plan y documentación
 
-### T-000 — [~] Mantener este tablero actualizado
+### T-000 — [x] Mantener este tablero actualizado
 
 - Prioridad: P0.
 - Contexto: este archivo es el estado vivo del proyecto. El usuario pidió explícitamente que [TASKS.md](TASKS.md) se actualice a medida que avancen las tareas.
@@ -250,6 +257,9 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
 - Notas de avance:
   - 2026-05-03: tarea creada como regla permanente del repo.
   - 2026-05-03: Planificación Fase 0 y Fase 1 completada. Ruta crítica y matrices documentadas en sección "Plan de ejecución inmediato" de este archivo.
+  - 2026-05-06: reconciliado tablero con estado real del repo. Se cerraron los pendientes históricos de fases 0–8, se
+    documentó auth DB-backed, refresh tokens persistidos, migraciones 003/004, API e2e real, CI endurecida y comandos de
+    validación vigentes.
 
 ### T-001 — [x] Sincronizar README con el roadmap real
 
@@ -273,10 +283,11 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
 - Rutas del repo: [libs/contracts/src/lib](libs/contracts/src/lib), [libs/contracts/src/index.ts](libs/contracts/src/index.ts).
 - Referencias PRD/plan: [PRD.md](PRD.md), [PLAN.md](PLAN.md).
 - Subtareas:
-  - [ ] Comparar `ConnectionProfile`, `CreateConnectionDto` y `ConnectionMode` con el PRD.
-  - [ ] Comparar `ExecuteQueryRequest`, `ExecuteQueryResponse`, `SqlRiskLevel` y `QueryHistoryEntry` con el PRD.
-  - [ ] Agregar contratos faltantes para audit logs, workspaces, users/roles extendidos, cancelación, formatter, unlock y healthchecks si aplica.
-  - [ ] Documentar breaking changes para frontend/backend.
+  - [x] Comparar `ConnectionProfile`, `CreateConnectionDto` y `ConnectionMode` con el PRD.
+  - [x] Comparar `ExecuteQueryRequest`, `ExecuteQueryResponse`, `SqlRiskLevel` y `QueryHistoryEntry` con el PRD.
+  - [x] Agregar contratos faltantes para audit logs, workspaces, users/roles extendidos, cancelación, formatter, unlock
+    y healthchecks si aplica.
+  - [x] Documentar breaking changes para frontend/backend.
 - Validación esperada:
   - `npm exec nx build @postgres-web-manager/contracts`.
 - Plan de implementación:
@@ -356,7 +367,9 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   3. Crear `apps/api/src/config/config.module.ts` que valide y exporte configuración.
   4. Actualizar `main.ts` para usar el módulo de configuración.
   5. Crear `.env.example` en raíz con todas las variables sin valores reales.
-- Dependencias: ninguna (puede ejecutarse en paralelo con T-010 y T-012). — [ ] Implementar base interna del gateway
+- Dependencias: ninguna (puede ejecutarse en paralelo con T-010 y T-012).
+
+### T-021 — [x] Implementar base interna del gateway
 
 - Prioridad: P0.
 - Contexto: [PRD.md](PRD.md) define tablas internas `workspaces`, `connection_profiles`, `query_history` y `audit_logs`. Sin esto no hay persistencia real.
@@ -373,7 +386,9 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   3. Crear `apps/api/src/database/database-migration.service.ts` que lea archivos de migraciones y los ejecute en orden al `onModuleInit`.
   4. Importar `DatabaseModule` en `AppModule`.
   5. Verificar `docker-compose.yml` apunta al mismo `DATABASE_URL`.
-- Dependencias: T-020 (necesita `DATABASE_URL` desde config), T-022 (pool manager necesita `DatabaseModule`). — [ ] Conectar `PostgresPoolManager` con conexiones persistidas
+- Dependencias: T-020 (necesita `DATABASE_URL` desde config), T-022 (pool manager necesita `DatabaseModule`).
+
+### T-022 — [x] Conectar `PostgresPoolManager` con conexiones persistidas
 
 - Prioridad: P0.
 - Contexto: existe [apps/api/src/postgres/postgres-pool.manager.ts](apps/api/src/postgres/postgres-pool.manager.ts), pero ningún servicio lo usa todavía.
@@ -388,7 +403,9 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   2. Inyectarlo en `ConnectionsService` via constructor.
   3. Añadir `QueryModule`, `MetadataModule`, `TableDataModule` como consumidores: re-exportar `PostgresPoolManager` desde `ConnectionsModule` o crear `PostgresModule` global.
   4. En `onModuleDestroy` de `ConnectionsService`, destruir pools de conexiones eliminadas.
-- Dependencias: T-021 (la BD interna debe existir para persistir conexiones). — [ ] Implementar cifrado y política de passwords
+- Dependencias: T-021 (la BD interna debe existir para persistir conexiones).
+
+### T-023 — [x] Implementar cifrado y política de passwords
 
 - Prioridad: P0.
 - Contexto: el PRD recomienda no guardar password por defecto y cifrar solo si el usuario lo decide.
@@ -403,7 +420,9 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   2. La clave proviene de `CREDENTIALS_ENCRYPTION_KEY` via `ConfigModule`.
   3. En `ConnectionsService.create()`: si `savePassword=true`, cifrar antes de insertar; si `false`, no insertar password.
   4. En `ConnectionsService.findOne()`: si password cifrado existe, no enviarlo al frontend nunca.
-- Dependencias: T-020 (necesita `CREDENTIALS_ENCRYPTION_KEY` desde config). — [ ] Crear clasificador de riesgo SQL
+- Dependencias: T-020 (necesita `CREDENTIALS_ENCRYPTION_KEY` desde config).
+
+### T-024 — [x] Crear clasificador de riesgo SQL
 
 - Prioridad: P0.
 - Contexto: [PRD.md](PRD.md) exige clasificar SQL antes de ejecutar. El contrato ya define `SqlRiskLevel` en [libs/contracts/src/lib/query.contracts.ts](libs/contracts/src/lib/query.contracts.ts).
@@ -424,23 +443,31 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
 
 ## 3. Backend Gateway MVP
 
-### T-030 — [ ] Implementar Auth MVP
+### T-030 — [x] Implementar Auth MVP
 
 - Prioridad: P1.
-- Contexto: `AuthController` existe, pero [apps/api/src/modules/auth/auth.service.ts](apps/api/src/modules/auth/auth.service.ts) lanza `Not implemented`.
+- Contexto: `AuthController` y [apps/api/src/modules/auth/auth.service.ts](apps/api/src/modules/auth/auth.service.ts)
+  implementan login, refresh, logout y perfil con usuarios persistidos.
 - Rutas del repo: [apps/api/src/modules/auth](apps/api/src/modules/auth), [libs/contracts/src/lib/auth.contracts.ts](libs/contracts/src/lib/auth.contracts.ts).
 - Rutas API: `/api/auth/login`, `/api/auth/refresh`, `/api/auth/logout`, `/api/auth/me`.
 - Criterios de aceptación:
-  - Auth dev inicial permite obtener `UserProfile` y tokens fake o JWT real según decisión documentada.
+  - Auth permite obtener `UserProfile` y JWT reales.
   - `/api/auth/me` existe.
   - Preparado para guards por rol en Fase 7.
 - Plan de implementación:
-  1. Añadir `@nestjs/jwt` si no está presente.
-  2. `AuthService.login(dto)`: validar usuario contra tabla `users` (o mock hardcoded controlado por `NODE_ENV=development`).
-  3. Emitir JWT con payload `{ sub, email, role }` y expirazione configurable.
-  4. Añadir `GET /auth/me` a `AuthController`; decodificar y retornar `UserProfile`.
-  5. Crear `JwtAuthGuard` con bypass cuando `NODE_ENV=development`.
-- Dependencias: T-020 (necesita `JWT_SECRET` desde config). — [ ] Implementar Connections CRUD y test connection
+  1. `AuthService.login(dto)`: valida usuario contra tabla `users`; solo usa fallback mock cuando no hay BD interna.
+  2. Passwords se verifican con `password_hash` PBKDF2-SHA256, nunca en texto plano.
+  3. Emitir JWT con payload `{ sub, email, role, workspaceId }`.
+  4. `GET /auth/me` decodifica token y retorna `UserProfile` desde DB.
+  5. `JwtAuthGuard` global protege rutas no `@Public()`.
+  6. Refresh tokens se guardan como hashes en `auth_refresh_tokens` y rotan en cada refresh.
+- Dependencias: T-020 (necesita `JWT_SECRET` y `JWT_REFRESH_SECRET` desde config).
+- Avance 2026-05-06:
+  - Cambios: auth DB-backed, migraciones `003_user_password_hashes.sql` y `004_refresh_tokens.sql`, `JWT_REFRESH_SECRET`
+    obligatorio en producción.
+  - Validación: `npm exec nx run @org/api-e2e:e2e -- --skipNxCache` → 17/17 pasa.
+
+### T-031 — [x] Implementar Connection Profiles
 
 - Prioridad: P1.
 - Contexto: `ConnectionsController` existe, pero [apps/api/src/modules/connections/connections.service.ts](apps/api/src/modules/connections/connections.service.ts) no tiene lógica.
@@ -457,7 +484,9 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   3. `ConnectionsService.testConnection(id)`: `PoolManager.createPool(profile)` → `SELECT version()` → medir latencia → `PoolManager.destroyPool(id)` → retornar `{ version, latencyMs, status: 'ok'|'error' }`.
   4. `ConnectionsService.unlock(id, password)`: guardar password en `Map<userId_connectionId, password>` en memoria; pool puede usarlo para crear cliente.
   5. `ConnectionsService.remove(id)`: destruir pool y eliminar perfil.
-- Dependencias: T-021 (BD interna), T-022 (pool manager), T-023 (cifrado). — [ ] Implementar ejecución de queries aisladas
+- Dependencias: T-021 (BD interna), T-022 (pool manager), T-023 (cifrado).
+
+### T-032 — [x] Implementar ejecución de queries aisladas
 
 - Prioridad: P1.
 - Contexto: `QueryController` existe, pero [apps/api/src/modules/query/query.service.ts](apps/api/src/modules/query/query.service.ts) no ejecuta SQL. El PRD diferencia query aislada vs sesión persistente.
@@ -476,7 +505,9 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   4. Mapear `pg.QueryResult` a `ExecuteQueryResponse`.
   5. Insertar en `query_history`; si riesgo DDL/DML/DANGEROUS, insertar en `audit_logs`.
   6. Liberar cliente al pool.
-- Dependencias: T-021 (historial en BD), T-022 (pool manager), T-024 (clasificador). — [ ] Implementar metadata PostgreSQL
+- Dependencias: T-021 (historial en BD), T-022 (pool manager), T-024 (clasificador).
+
+### T-033 — [x] Implementar metadata PostgreSQL
 
 - Prioridad: P1.
 - Contexto: `MetadataController` existe, pero [apps/api/src/modules/metadata/metadata.service.ts](apps/api/src/modules/metadata/metadata.service.ts) no consulta `information_schema` ni `pg_catalog`.
@@ -497,7 +528,9 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   3. `getTableDetail(connectionId, schema, table)`: unir columnas de `information_schema.columns` + `pg_indexes` + `pg_constraint` para PKs/FKs.
   4. `getFunctions(connectionId, schema)`: `SELECT routine_name FROM information_schema.routines WHERE routine_schema = $1`.
   5. Usar `PoolManager.getClient(connectionId)` y liberar.
-- Dependencias: T-022 (pool manager), T-031 (conexiones con pool activo). — [ ] Implementar `EXPLAIN` básico
+- Dependencias: T-022 (pool manager), T-031 (conexiones con pool activo).
+
+### T-034 — [x] Implementar `EXPLAIN` básico
 
 - Prioridad: P1.
 - Contexto: el PRD incluye Query Analyzer en MVP mínimo. `ExplainController` existe, pero [apps/api/src/modules/explain/explain.service.ts](apps/api/src/modules/explain/explain.service.ts) no tiene lógica.
@@ -514,7 +547,9 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   3. Parsear resultado a `ExplainPlanNode[]`.
   4. Retornar `ExplainResponse { planningTime?, executionTime?, plan }`.
   5. El endpoint es `POST /api/queries/explain` en `QueryController`; `ExplainController` queda deprecado.
-- Dependencias: T-022 (pool manager), T-024 (clasificador), T-032 (comparte pool logic). — [ ] Implementar lectura de tablas
+- Dependencias: T-022 (pool manager), T-024 (clasificador), T-032 (comparte pool logic).
+
+### T-035 — [x] Implementar lectura de tablas
 
 - Prioridad: P1.
 - Contexto: `TableDataController` existe, pero [apps/api/src/modules/table-data/table-data.service.ts](apps/api/src/modules/table-data/table-data.service.ts) no lee datos. Para MVP se requiere abrir tabla y ver datos.
@@ -567,7 +602,7 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
 
 ## 5. Frontend MVP Angular
 
-### T-050 — [ ] Reemplazar Nx welcome por shell de producto
+### T-050 — [x] Reemplazar Nx welcome por shell de producto
 
 - Prioridad: P1.
 - Contexto: [apps/web/src/app/app.html](apps/web/src/app/app.html) muestra `<app-nx-welcome>` y [apps/web/src/app/app.routes.ts](apps/web/src/app/app.routes.ts) está vacío.
@@ -578,7 +613,7 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   - Rutas iniciales: dashboard, connections, workspace/sql, table browser y settings placeholder.
   - No queda dependencia visual de `NxWelcome`.
 
-### T-051 — [ ] Crear servicios Angular para API gateway
+### T-051 — [x] Crear servicios Angular para API gateway
 
 - Prioridad: P1.
 - Contexto: el frontend debe consumir solo `/api/*`. El PRD sugiere servicios `GatewayQueryService` y `MetadataService`.
@@ -597,7 +632,7 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   - No hay conexión directa a PostgreSQL ni strings de conexión en frontend.
   - Errores API se manejan con modelo común.
 
-### T-052 — [ ] Implementar Connection Manager UI
+### T-052 — [x] Implementar Connection Manager UI
 
 - Prioridad: P1.
 - Contexto: es parte del MVP realista del PRD: crear conexión y probar conexión.
@@ -609,7 +644,7 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   - Lista de conexiones guardadas.
   - No se muestra ni persiste password en estado global más de lo necesario.
 
-### T-053 — [ ] Implementar Schema Explorer
+### T-053 — [x] Implementar Schema Explorer
 
 - Prioridad: P1.
 - Contexto: el PRD requiere explorar schemas, tablas, vistas, columnas, índices y constraints.
@@ -621,7 +656,7 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   - Vista de columnas, índices y constraints al seleccionar tabla.
   - Acciones para abrir tabla o insertar nombre en editor SQL.
 
-### T-054 — [ ] Implementar SQL Workspace básico
+### T-054 — [x] Implementar SQL Workspace básico
 
 - Prioridad: P1.
 - Contexto: corazón del MVP: ejecutar SQL, ver resultados y errores.
@@ -634,7 +669,7 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   - Resultados en grilla con columnas dinámicas.
   - Errores SQL visibles y formateados.
 
-### T-055 — [ ] Exportar resultados CSV/JSON
+### T-055 — [x] Exportar resultados CSV/JSON
 
 - Prioridad: P1.
 - Contexto: exportar resultados está en objetivo del producto y MVP realista.
@@ -648,7 +683,7 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
 
 ## 6. Editor SQL avanzado
 
-### T-060 — [ ] Integrar Monaco Editor
+### T-060 — [x] Integrar Monaco Editor
 
 - Prioridad: P2.
 - Contexto: recomendado por el PRD para una experiencia tipo DBeaver Web.
@@ -659,7 +694,7 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   - Shortcuts básicos: run query, run selection, format.
   - No rompe build de producción.
 
-### T-061 — [ ] Agregar autocompletado con metadata
+### T-061 — [x] Agregar autocompletado con metadata
 
 - Prioridad: P2.
 - Contexto: depende de metadata backend y conexión activa.
@@ -669,7 +704,7 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   - Cachea metadata por conexión/schema.
   - Permite refrescar metadata manualmente.
 
-### T-062 — [ ] Implementar formatter SQL
+### T-062 — [x] Implementar formatter SQL
 
 - Prioridad: P2.
 - Contexto: el PRD propone `/queries/format` como utilidad del editor.
@@ -684,7 +719,7 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
 
 ## 7. Table Browser editable
 
-### T-070 — [ ] Implementar Table Browser de solo lectura
+### T-070 — [x] Implementar Table Browser de solo lectura
 
 - Prioridad: P1.
 - Contexto: MVP realista incluye abrir tabla y ver datos.
@@ -695,7 +730,7 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   - Paginación, ordenamiento y filtros.
   - Muestra tipos de columna y total estimado/real cuando esté disponible.
 
-### T-071 — [ ] Implementar preview y aplicación de cambios
+### T-071 — [x] Implementar preview y aplicación de cambios
 
 - Prioridad: P2.
 - Contexto: PRD define `TableChange`, preview SQL y aplicación en transacción.
@@ -707,7 +742,7 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   - Aplicación usa una transacción y rollback ante error.
   - Auditoría registra cambios.
 
-### T-072 — [ ] Bloquear edición sin PK/unique key confiable
+### T-072 — [x] Bloquear edición sin PK/unique key confiable
 
 - Prioridad: P2.
 - Contexto: regla crítica del PRD para evitar updates/deletes ambiguos.
@@ -721,7 +756,7 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
 
 ## 8. DDL visual
 
-### T-080 — [ ] Implementar Create Table Designer
+### T-080 — [x] Implementar Create Table Designer
 
 - Prioridad: P2.
 - Contexto: PRD define `CreateTableRequest`, columnas, PK, índices, FKs y checks.
@@ -733,7 +768,7 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   - DDL destructivo o riesgoso requiere confirmación.
   - Auditoría registra ejecución.
 
-### T-081 — [ ] Implementar Alter Table e índices/constraints
+### T-081 — [x] Implementar Alter Table e índices/constraints
 
 - Prioridad: P2.
 - Contexto: PRD incluye modificar tablas, columnas, índices y constraints.
@@ -748,7 +783,7 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
 
 ## 9. Query Analyzer
 
-### T-090 — [ ] Visualizar plan de ejecución
+### T-090 — [x] Visualizar plan de ejecución
 
 - Prioridad: P2.
 - Contexto: [PRD.md](PRD.md) pide árbol del plan, costos, filas estimadas/reales, loops y tiempos.
@@ -759,7 +794,7 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   - UI renderiza árbol navegable.
   - Muestra planning time, execution time, total cost y buffers cuando existan.
 
-### T-091 — [ ] Agregar advertencias de performance y seguridad
+### T-091 — [x] Agregar advertencias de performance y seguridad
 
 - Prioridad: P2.
 - Contexto: Query Analyzer debe detectar nodos costosos y proteger `EXPLAIN ANALYZE`.
@@ -773,7 +808,7 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
 
 ## 10. Seguridad SaaS y auditoría
 
-### T-100 — [ ] Implementar workspaces, users, roles y guards
+### T-100 — [x] Implementar workspaces, users, roles y guards
 
 - Prioridad: P3.
 - Contexto: PRD define roles `OWNER`, `ADMIN`, `DEVELOPER`, `READ_ONLY` y workspaces para SaaS.
@@ -784,7 +819,7 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   - Guards aplican rol por endpoint.
   - Frontend oculta acciones no permitidas.
 
-### T-101 — [ ] Implementar auditoría avanzada
+### T-101 — [x] Implementar auditoría avanzada
 
 - Prioridad: P3.
 - Contexto: PRD exige auditar DDL y operaciones de escritura/destructivas.
@@ -794,7 +829,7 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   - Hay endpoint para listar/filtrar audit logs.
   - Passwords y valores sensibles no se auditan en claro.
 
-### T-102 — [ ] Endurecer read-only mode y límites
+### T-102 — [x] Endurecer read-only mode y límites
 
 - Prioridad: P3.
 - Contexto: el modo read-only debe bloquear operaciones no seguras tanto en REST como WebSocket.
@@ -808,7 +843,7 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
 
 ## 11. Testing, calidad y DevOps
 
-### T-110 — [ ] Reemplazar pruebas placeholder por pruebas reales
+### T-110 — [x] Reemplazar pruebas placeholder por pruebas reales
 
 - Prioridad: P1.
 - Contexto: las pruebas actuales son defaults de Nx y no validan el producto.
@@ -821,7 +856,9 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   1. Reemplazar contenido de `apps/api-e2e/src/api/api.spec.ts` con pruebas para: `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/connections`, `GET /api/connections`, `POST /api/connections/test`, `POST /api/queries/execute` (SELECT 1), `GET /api/metadata/:id/schemas`, `POST /api/table-data/read`.
   2. Usar `global-setup.ts` para crear una conexión de test al PostgreSQL del Docker.
   3. Reemplazar `apps/web-e2e/src/example.spec.ts` con tests de carga y navegación básica (requiere Fase 2).
-- Dependencias: T-111 (seed de BD), todas las tareas F1.1–F1.7. — [ ] Crear estrategia de datos de test PostgreSQL
+- Dependencias: T-111 (seed de BD), todas las tareas F1.1–F1.7.
+
+### T-111 — [x] Crear estrategia de datos de test PostgreSQL
 
 - Prioridad: P1.
 - Contexto: query, metadata, table-data, DDL y explain necesitan base PostgreSQL reproducible.
@@ -835,7 +872,9 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   2. Insertar al menos 50 filas de datos determinísticos (sin `random()`).
   3. `global-teardown.ts` hace `DROP SCHEMA test_schema CASCADE`.
   4. Documentar en README cómo levantar DB de test con `docker compose up postgres`.
-- Dependencias: T-021 (BD interna levantada), T-110 (spec precisa el seed). — [ ] Endurecer Docker para desarrollo y producción
+- Dependencias: T-021 (BD interna levantada), T-110 (spec precisa el seed).
+
+### T-112 — [x] Endurecer Docker para desarrollo y producción
 
 - Prioridad: P2.
 - Contexto: [docker/docker-compose.yml](docker/docker-compose.yml) existe, pero debe alinearse con env, migraciones y reverse proxy.
@@ -845,7 +884,7 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   - Nginx/reverse proxy enruta `/api/*` y WebSocket.
   - Variables sensibles se documentan sin valores reales.
 
-### T-113 — [ ] Configurar CI con Nx
+### T-113 — [x] Configurar CI con Nx
 
 - Prioridad: P2.
 - Contexto: el repo debe validar cambios por proyecto y aprovechar Nx.
@@ -855,7 +894,7 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
   - Usa `nx affected` o `nx run-many` según corresponda.
   - Artefactos/logs facilitan depuración.
 
-### T-114 — [ ] Documentar decisiones técnicas y seguridad
+### T-114 — [x] Documentar decisiones técnicas y seguridad
 
 - Prioridad: P2.
 - Contexto: a medida que se implementen fases, el repo necesitará documentación operativa.
@@ -874,6 +913,7 @@ T-000 es regla permanente. T-001/T-112/T-113/T-114 acompañan en paralelo.
 - Diff de schemas.
 - Locks y sesiones activas avanzadas.
 - Kill query en PostgreSQL usando backend controlado.
-- Import/export masivo.
+- [x] Import/export masivo: CSV/JSON desde navegador de tablas, export con filtros/orden activos e import transaccional
+  por batches con validación de columnas.
 - AI assistant para SQL, solo después de seguridad/auditoría.
 - Billing y límites comerciales.

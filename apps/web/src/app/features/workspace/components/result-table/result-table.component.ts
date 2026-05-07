@@ -1,4 +1,4 @@
-import { Component, Input, signal, computed } from '@angular/core';
+import { Component, computed, Input, signal } from '@angular/core';
 
 export interface ResultColumn {
   name: string;
@@ -19,7 +19,9 @@ export interface ResultColumn {
           <span class="result__error-icon">✕</span>
           <div>
             <div class="result__error-msg">{{ error() }}</div>
-            @if (errorCode()) { <div class="result__error-code">Code: {{ errorCode() }}</div> }
+            @if (errorCode()) {
+              <div class="result__error-code">Code: {{ errorCode() }}</div>
+            }
           </div>
         </div>
       }
@@ -68,123 +70,137 @@ export interface ResultColumn {
       }
     </div>
   `,
-  styles: [`
-    .result {
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    .result__empty {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-muted);
-      font-size: 13px;
-    }
-
-    .result__error {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      padding: 16px;
-      background: var(--danger-dim);
-      border: 1px solid var(--danger);
-      border-radius: var(--radius);
-      margin: 8px;
-    }
-
-    .result__error-icon {
-      color: var(--danger);
-      font-weight: bold;
-      margin-top: 1px;
-    }
-
-    .result__error-msg {
-      font-size: 13px;
-      color: var(--text-primary);
-      font-family: var(--font-mono);
-    }
-
-    .result__error-code {
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-top: 4px;
-    }
-
-    .result__meta {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 4px 10px;
-      font-size: 11px;
-      color: var(--text-muted);
-      border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
-    }
-
-    .result__duration { color: var(--success); }
-    .result__command  { color: var(--accent); }
-
-    .result__table-wrap {
-      flex: 1;
-      overflow: auto;
-    }
-
-    .result-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12px;
-      font-family: var(--font-mono);
-
-      th, td {
-        padding: 5px 10px;
-        text-align: left;
-        white-space: nowrap;
-        border-right: 1px solid var(--border);
+  styles: [
+    `
+      .result {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
       }
 
-      th {
-        background: var(--bg-elevated);
-        color: var(--text-secondary);
+      .result__empty {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-muted);
+        font-size: 13px;
+      }
+
+      .result__error {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 16px;
+        background: var(--danger-dim);
+        border: 1px solid var(--danger);
+        border-radius: var(--radius);
+        margin: 8px;
+      }
+
+      .result__error-icon {
+        color: var(--danger);
+        font-weight: bold;
+        margin-top: 1px;
+      }
+
+      .result__error-msg {
+        font-size: 13px;
+        color: var(--text-primary);
+        font-family: var(--font-mono);
+      }
+
+      .result__error-code {
         font-size: 11px;
-        font-weight: 600;
-        position: sticky;
-        top: 0;
+        color: var(--text-muted);
+        margin-top: 4px;
+      }
+
+      .result__meta {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 4px 10px;
+        font-size: 11px;
+        color: var(--text-muted);
         border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
       }
 
-      tr:hover td { background: var(--bg-hover); }
-
-      &__rownum {
-        color: var(--text-muted);
-        font-size: 10px;
-        min-width: 36px;
-        text-align: right;
-        user-select: none;
+      .result__duration {
+        color: var(--success);
+      }
+      .result__command {
+        color: var(--accent);
       }
 
-      &__null {
-        color: var(--text-muted);
-        font-style: italic;
+      .result__table-wrap {
+        flex: 1;
+        overflow: auto;
+        min-height: 0;
+        min-width: 0;
       }
-    }
 
-    .result__truncated {
-      padding: 4px 10px;
-      font-size: 11px;
-      color: var(--warning);
-      border-top: 1px solid var(--border);
-      flex-shrink: 0;
-    }
-  `],
+      .result-table {
+        width: max-content;
+        min-width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+        font-family: var(--font-mono);
+
+        th,
+        td {
+          padding: 5px 10px;
+          text-align: left;
+          white-space: nowrap;
+          border-right: 1px solid var(--border);
+        }
+
+        th {
+          background: var(--bg-elevated);
+          color: var(--text-secondary);
+          font-size: 11px;
+          font-weight: 600;
+          position: sticky;
+          top: 0;
+          border-bottom: 1px solid var(--border);
+        }
+
+        tr:hover td {
+          background: var(--bg-hover);
+        }
+
+        &__rownum {
+          color: var(--text-muted);
+          font-size: 10px;
+          min-width: 36px;
+          text-align: right;
+          user-select: none;
+        }
+
+        &__null {
+          color: var(--text-muted);
+          font-style: italic;
+        }
+      }
+
+      .result__truncated {
+        padding: 4px 10px;
+        font-size: 11px;
+        color: var(--warning);
+        border-top: 1px solid var(--border);
+        flex-shrink: 0;
+      }
+    `,
+  ],
 })
 export class ResultTableComponent {
   readonly MAX_VISIBLE = 2000;
 
-  @Input() set result(v: { columns: ResultColumn[]; rows: unknown[][] } | null) {
+  @Input() set result(
+    v: { columns: ResultColumn[]; rows: unknown[][] } | null,
+  ) {
     this._columns.set(v?.columns ?? []);
     this._rows.set(v?.rows ?? []);
     this._error.set(null);
@@ -194,7 +210,9 @@ export class ResultTableComponent {
     this._rowCount.set(v?.rows?.length ?? 0);
   }
 
-  @Input() set queryDone(v: { rowCount: number; durationMs: number; command?: string } | null) {
+  @Input() set queryDone(
+    v: { rowCount: number; durationMs: number; command?: string } | null,
+  ) {
     if (v) {
       this._duration.set(v.durationMs);
       this._command.set(v.command ?? null);

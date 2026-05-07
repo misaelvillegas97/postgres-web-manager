@@ -27,11 +27,20 @@ pgstudio
 │   └── contracts    # Shared TypeScript DTOs, enums, and interfaces
 └── docker
     ├── docker-compose.yml          # Production stack
+    ├── docker-compose.external-db.yml # Production stack with managed metadata DB
     ├── docker-compose.dev.yml      # Development stack (hot-reload)
     ├── api.Dockerfile              # Multi-stage production image
+    ├── all-in-one.Dockerfile       # Single-container PaaS image
     ├── api.dev.Dockerfile          # Development image with live reload
     ├── web.Dockerfile              # Nginx + Angular production build
     └── nginx.conf                  # Nginx configuration (API proxy + SPA routing)
+deploy
+├── railway                         # Railway all-in-one template
+├── fly                             # Fly.io all-in-one template
+├── vercel                          # Frontend-only Vercel template
+└── helm/pgstudio                   # Kubernetes Helm chart
+docs
+└── DEPLOYMENT.md                   # Production deployment guide
 ```
 
 ## Tech Stack
@@ -82,8 +91,8 @@ npm install
 
 Copy and configure environment variables:
 ```bash
-cp apps/api/.env.example apps/api/.env
-# Edit DATABASE_URL, JWT_SECRET, ENCRYPTION_KEY
+cp .env.example apps/api/.env
+# Edit DATABASE_URL, JWT_SECRET, JWT_REFRESH_SECRET, CREDENTIALS_ENCRYPTION_KEY
 ```
 
 Start PostgreSQL (Docker):
@@ -98,12 +107,12 @@ docker run -d --name pgstudio-db \
 
 Start the API (hot-reload):
 ```bash
-npx nx serve @org/api
+npm exec nx serve @org/api
 ```
 
 Start the Angular dev server:
 ```bash
-npx nx serve web
+npm exec nx serve web
 ```
 
 Open: http://localhost:4200
@@ -118,30 +127,34 @@ docker-compose -f docker/docker-compose.dev.yml up
 
 ```bash
 # Validate contracts
-npx nx build @postgres-web-manager/contracts
+npm exec nx build @postgres-web-manager/contracts
 
 # Build API
-npx nx build @org/api
+npm exec nx build @org/api
 
 # Build web
-npx nx build web
+npm exec nx build web
 
 # Build all
-npx nx run-many -t build
+npm exec nx run-many -t build
 ```
 
 ### Docker (production)
 
 ```bash
-docker-compose -f docker/docker-compose.yml up --build
+cp .env.production.example .env.production
+docker compose --env-file .env.production -f docker/docker-compose.yml up -d --build
 ```
 
 Serves:
 | Service | URL |
 |---------|-----|
-| Web app | http://localhost:4200 |
-| API | http://localhost:3000/api |
-| PostgreSQL (internal) | postgres:5432 |
+| Web app | http://localhost:8080 |
+| API | Internal Docker network (`http://api:3000/api`) |
+| PostgreSQL metadata DB | Internal Docker network (`postgres:5432`) |
+
+More production options are documented in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md), including Docker Compose with an
+external metadata DB, Railway, Fly.io, Vercel frontend-only, Kubernetes/Helm and local production installers.
 
 ---
 
@@ -149,15 +162,17 @@ Serves:
 
 ### Backend (`apps/api/.env`)
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `DATABASE_URL` | Yes | — | PostgreSQL connection string for the internal PgStudio metadata DB |
-| `JWT_SECRET` | Yes | `dev-jwt-secret-not-for-production` | Secret used to sign access and refresh tokens. **Must be changed in production.** |
-| `ENCRYPTION_KEY` | Yes | — | 32-byte hex key used to encrypt stored PostgreSQL passwords (AES-256). Generate with `openssl rand -hex 32`. |
-| `PORT` | No | `3000` | HTTP port the API listens on |
-| `NODE_ENV` | No | `development` | `development` or `production` |
+| Variable                     | Required   | Default                                     | Description                                                                                                                                                              |
+|------------------------------|------------|---------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `DATABASE_URL`               | Production | —                                           | PostgreSQL connection string for the internal PgStudio metadata DB                                                                                                       |
+| `JWT_SECRET`                 | Production | `dev-jwt-secret-not-for-production`         | Secret used to sign access tokens. **Must be changed in production.**                                                                                                    |
+| `JWT_REFRESH_SECRET`         | Production | `dev-jwt-refresh-secret-not-for-production` | Secret used to sign refresh tokens. **Must be changed in production.**                                                                                                   |
+| `CREDENTIALS_ENCRYPTION_KEY` | Production | —                                           | 32+ character key used to encrypt saved PostgreSQL passwords with AES-256-GCM. Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. |
+| `PORT`                       | No         | `3000`                                      | HTTP port the API listens on                                                                                                                                             |
+| `NODE_ENV`                   | No         | `development`                               | `development` or `production`                                                                                                                                            |
 
-> **Security note**: `JWT_SECRET` and `ENCRYPTION_KEY` should be unique, randomly generated secrets. Never use the development defaults in production.
+> **Security note**: `JWT_SECRET`, `JWT_REFRESH_SECRET`, and `CREDENTIALS_ENCRYPTION_KEY` should be unique, randomly
+> generated secrets. Never use the development defaults in production.
 
 ---
 
@@ -262,36 +277,40 @@ Events:
 
 ```bash
 # Build everything
-npx nx run-many -t build
+npm exec nx run-many -t build
 
 # Lint all
-npx nx run-many -t lint
+npm exec nx run-many -t lint
 
 # Unit tests
-npx nx run-many -t test
+npm exec nx run-many -t test
 
 # API e2e
-npx nx e2e @org/api-e2e
+npm exec nx e2e @org/api-e2e
 
 # Web e2e
-npx nx e2e web-e2e
+npm exec nx e2e web-e2e
 ```
 
 ## Deployment
 
+For the complete deployment matrix, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
 ### Prerequisites
 - Domain with HTTPS (TLS termination via reverse proxy or load balancer)
 - PostgreSQL 14+ instance for PgStudio metadata storage
-- 32-byte ENCRYPTION_KEY (generate once, store securely)
-- Strong random JWT_SECRET
+- 32+ character `CREDENTIALS_ENCRYPTION_KEY` (generate once, store securely)
+- Strong random `JWT_SECRET` and `JWT_REFRESH_SECRET`
 
 ### Production Checklist
 - [ ] Set `NODE_ENV=production`
 - [ ] Replace default `JWT_SECRET` with a random 64+ char value
-- [ ] Generate `ENCRYPTION_KEY` with `openssl rand -hex 32`
+- [ ] Replace default `JWT_REFRESH_SECRET` with a different random 64+ char value
+- [ ] Generate `CREDENTIALS_ENCRYPTION_KEY` with
+  `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
 - [ ] Set `DATABASE_URL` to a dedicated PostgreSQL database
 - [ ] Configure TLS on the reverse proxy (SSL termination)
-- [ ] Set CORS policy in `app.enableCors()` to your domain
+- [ ] Set `CORS_ORIGIN` to the allowed frontend origin(s)
 - [ ] Review rate-limit settings (`ThrottlerModule`)
 - [ ] Rotate secrets periodically
 
@@ -370,24 +389,24 @@ npm install
 
 Start the API:
 ```bash
-npx nx serve api
+npm exec nx serve @org/api
 ```
 
 Start the Angular app:
 ```bash
-npx nx serve web
+npm exec nx serve web
 ```
 
 ### Build
 
 ```bash
 # Build everything
-npx nx run-many -t build
+npm exec nx run-many -t build
 
 # Build individual projects
-npx nx build contracts
-npx nx build @org/api
-npx nx build web
+npm exec nx build @postgres-web-manager/contracts
+npm exec nx build @org/api
+npm exec nx build web
 ```
 
 ### Docker

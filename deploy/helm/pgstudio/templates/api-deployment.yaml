@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: { { include "pgstudio.fullname" . } }-api
+  labels:
+    {{- include "pgstudio.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  replicas: { { .Values.replicaCount.api } }
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: { { .Release.Name } }
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      labels:
+        { { - include "pgstudio.labels" . | nindent 8 } }
+        app.kubernetes.io/component: api
+    spec:
+      containers:
+        - name: api
+          image: "{{ .Values.image.api.repository }}:{{ .Values.image.api.tag }}"
+          imagePullPolicy: { { .Values.image.api.pullPolicy } }
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            - name: PORT
+              value: "3000"
+            - name: NODE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: { { include "pgstudio.fullname" . } }-config
+                  key: NODE_ENV
+            - name: CORS_ORIGIN
+              valueFrom:
+                configMapKeyRef:
+                  name: { { include "pgstudio.fullname" . } }-config
+                  key: CORS_ORIGIN
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: { { include "pgstudio.fullname" . } }-secret
+                  key: DATABASE_URL
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: { { include "pgstudio.fullname" . } }-secret
+                  key: JWT_SECRET
+            - name: JWT_REFRESH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: { { include "pgstudio.fullname" . } }-secret
+                  key: JWT_REFRESH_SECRET
+            - name: CREDENTIALS_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: { { include "pgstudio.fullname" . } }-secret
+                  key: CREDENTIALS_ENCRYPTION_KEY
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            { { - toYaml .Values.resources.api | nindent 12 } }

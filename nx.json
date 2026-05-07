@@ -48,6 +48,9 @@
       }
     }
   ],
+  "sync": {
+    "applyChanges": true
+  },
   "analytics": false,
   "targetDefaults": {
     "@angular/build:application": {

@@ -1,0 +1,379 @@
+$primary: #afc6ff;
+$on-primary: #002d6c;
+$primary-fixed: #d9e2ff;
+$surface: #11131a;
+$surface-container: #1d1f27;
+$surface-container-low: #191b22;
+$on-surface: #e1e2ec;
+$on-surface-variant: #c2c6d6;
+$outline: #8c909f;
+$outline-variant: #424753;
+$success: #4caf7d;
+
+$font-base: 'Inter', system-ui, sans-serif;
+$font-mono: 'JetBrains Mono', monospace;
+$section-gap: 96px;
+$gutter: 24px;
+$container-max: 1200px;
+$r: 2px;
+$r-lg: 4px;
+$r-xl: 8px;
+
+:host {
+  display: block;
+  background: $surface;
+  color: $on-surface;
+  font-family: $font-base;
+}
+
+.container {
+  max-width: $container-max;
+  margin: 0 auto;
+  padding: 0 $gutter;
+}
+
+.page-content {
+  display: flex;
+  flex-direction: column;
+  gap: $section-gap;
+  padding-bottom: $section-gap;
+}
+
+// Hero
+.page-hero {
+  padding: $section-gap 0 0;
+
+  .container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.5rem;
+  }
+}
+
+.badge-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba($success, 0.1);
+  border: 1px solid rgba($success, 0.25);
+  color: $success;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 20px;
+
+  .material-symbols-outlined {
+    font-size: 14px;
+  }
+}
+
+.page-hero__title {
+  font-size: clamp(28px, 4vw, 48px);
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  font-weight: 700;
+  color: $on-surface;
+  margin: 0;
+  max-width: 600px;
+}
+
+.page-hero__desc {
+  font-size: 15px;
+  line-height: 1.6;
+  color: $on-surface-variant;
+  max-width: 560px;
+  margin: 0;
+}
+
+// Buttons
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: $r;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  transition: background 200ms, border-color 200ms;
+
+  &--primary {
+    background: $primary;
+    color: $on-primary;
+
+    &:hover {
+      background: $primary-fixed;
+    }
+  }
+
+  &--outline {
+    border: 1px solid $outline-variant;
+    background: transparent;
+    color: $on-surface;
+
+    &:hover {
+      background: $surface-container;
+      border-color: $outline;
+    }
+  }
+}
+
+// Section
+.section {
+  .container {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+}
+
+.section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.section-title {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: $on-surface;
+  margin: 0;
+}
+
+// Pricing grid
+.pricing-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.pricing-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  background: $surface-container;
+  border: 1px solid $outline-variant;
+  border-radius: $r-xl;
+  padding: 2rem;
+  position: relative;
+  transition: border-color 200ms;
+
+  &--featured {
+    border-color: $primary;
+  }
+
+  &--enterprise {
+    opacity: 0.85;
+  }
+}
+
+.pricing-card__header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.featured-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: $primary;
+  color: $on-primary;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 4px 12px;
+  border-bottom-left-radius: $r-lg;
+  border-top-right-radius: $r-xl;
+}
+
+.pricing-card__icon {
+  font-size: 28px;
+  color: $on-surface-variant;
+}
+
+.pricing-card--featured .pricing-card__icon {
+  color: $primary;
+}
+
+.pricing-card__name {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: $on-surface;
+  margin: 0;
+}
+
+.pricing-card__tagline {
+  font-size: 13px;
+  color: $on-surface-variant;
+  margin: 0;
+}
+
+.pricing-card__price {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  border-top: 1px solid $outline-variant;
+  padding-top: 1.5rem;
+}
+
+.price-value {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: $on-surface;
+}
+
+.price-period {
+  font-size: 12px;
+  color: $outline;
+}
+
+.pricing-features {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: $on-surface-variant;
+  }
+}
+
+.check-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  color: $on-surface-variant;
+
+  &--primary {
+    color: $primary;
+  }
+
+  &--muted {
+    color: $outline;
+  }
+}
+
+.pricing-card__cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 11px 16px;
+  border-radius: $r;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  transition: background 200ms, border-color 200ms;
+  margin-top: auto;
+}
+
+.btn-primary {
+  background: $primary;
+  color: $on-primary;
+
+  &:hover {
+    background: $primary-fixed;
+  }
+}
+
+.btn-outline {
+  border: 1px solid $outline-variant;
+  background: transparent;
+  color: $on-surface;
+
+  &:hover {
+    background: $surface-container-low;
+    border-color: $outline;
+  }
+}
+
+// FAQ
+.faq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid $outline-variant;
+  border-radius: $r-lg;
+  overflow: hidden;
+}
+
+.faq-item {
+  padding: 1.5rem;
+  border-bottom: 1px solid $outline-variant;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.faq-q {
+  font-size: 14px;
+  font-weight: 600;
+  color: $on-surface;
+  margin: 0 0 8px;
+}
+
+.faq-a {
+  font-size: 13px;
+  line-height: 1.6;
+  color: $on-surface-variant;
+  margin: 0;
+
+  code {
+    font-family: $font-mono;
+    color: $on-surface;
+  }
+}
+
+// CTA box
+.cta-box {
+  background: $surface-container;
+  border: 1px solid $outline-variant;
+  border-radius: $r-xl;
+  padding: 3rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.cta-title {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: $on-surface;
+  margin: 0;
+}
+
+.cta-desc {
+  font-size: 14px;
+  color: $on-surface-variant;
+  margin: 0;
+}
+
+.cta-actions {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}

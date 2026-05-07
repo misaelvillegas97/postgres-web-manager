@@ -35,7 +35,7 @@ export interface ExecuteQueryRequest {
 export interface ExecuteQueryResponse {
   queryId: string;
   status: 'success' | 'error' | 'cancelled';
-  statement: string;
+  statement?: string;
   columns: QueryColumn[];
   rows: Record<string, unknown>[];
   rowCount: number;

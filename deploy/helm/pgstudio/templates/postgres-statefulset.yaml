@@ -1,0 +1,62 @@
+{ { - if .Values.postgres.enabled } }
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: { { include "pgstudio.fullname" . } }-postgres
+  labels:
+    {{- include "pgstudio.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  serviceName: { { include "pgstudio.fullname" . } }-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: { { .Release.Name } }
+      app.kubernetes.io/component: postgres
+  template:
+    metadata:
+      labels:
+        { { - include "pgstudio.labels" . | nindent 8 } }
+        app.kubernetes.io/component: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: "{{ .Values.postgres.image.repository }}:{{ .Values.postgres.image.tag }}"
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: { { .Values.postgres.auth.username | quote } }
+            - name: POSTGRES_DB
+              value: { { .Values.postgres.auth.database | quote } }
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: { { include "pgstudio.fullname" . } }-secret
+                  key: POSTGRES_PASSWORD
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            { { - toYaml .Values.resources.postgres | nindent 12 } }
+      { { - if not .Values.postgres.persistence.enabled } }
+      volumes:
+        - name: data
+          emptyDir: { }
+      { { - end } }
+  { { - if .Values.postgres.persistence.enabled } }
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        { { - if .Values.postgres.persistence.storageClass } }
+        storageClassName: { { .Values.postgres.persistence.storageClass | quote } }
+        { { - end } }
+        resources:
+          requests:
+            storage: { { .Values.postgres.persistence.size } }
+  { { - end } }
+  { { - end } }

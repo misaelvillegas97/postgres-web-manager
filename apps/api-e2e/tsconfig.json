@@ -3,9 +3,10 @@
   "compilerOptions": {
     "outDir": "out-tsc/@org/api-e2e",
     "esModuleInterop": true,
+    "types": ["jest", "node"],
     "noUnusedLocals": false,
     "noImplicitAny": false
   },
-  "include": ["jest.config.ts", "src/**/*.ts"],
+  "include": ["jest.config.cts", "src/**/*.ts"],
   "references": []
 }
