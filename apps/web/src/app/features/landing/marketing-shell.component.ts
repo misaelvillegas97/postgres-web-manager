@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { RouterModule } from '@angular/router';
 
 @Component({
@@ -8,4 +8,8 @@ import { RouterModule } from '@angular/router';
   templateUrl: './marketing-shell.component.html',
   styleUrl: './marketing-shell.component.scss',
 })
-export class MarketingShellComponent {}
+export class MarketingShellComponent {
+  menuOpen = signal(false);
+  toggleMenu(): void { this.menuOpen.update(v => !v); }
+  closeMenu(): void { this.menuOpen.set(false); }
+}

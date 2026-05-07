@@ -107,10 +107,15 @@ $gutter: 24px;
 }
 
 .link-github {
+  display: none; // hidden on mobile — shown in the drawer instead
   font-size: 13px;
   color: $on-surface-variant;
   text-decoration: none;
   transition: color 200ms;
+
+  @media (min-width: 768px) {
+    display: inline;
+  }
 
   &:hover {
     color: $on-surface;
@@ -173,6 +178,116 @@ $gutter: 24px;
 
 .footer-link {
   font-size: 12px;
+  color: $on-surface-variant;
+  text-decoration: none;
+  transition: color 200ms;
+
+  &:hover {
+    color: $on-surface;
+    text-decoration: none;
+  }
+}
+
+// ── Hamburger button (mobile only) ────────────────────────────────────────────
+.hamburger {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  width: 40px;
+  height: 40px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+
+  @media (min-width: 768px) {
+    display: none;
+  }
+
+  span {
+    display: block;
+    width: 22px;
+    height: 2px;
+    background: $on-surface;
+    border-radius: 2px;
+    transition: transform 250ms ease, opacity 200ms, transform 250ms;
+  }
+
+  &--open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  &--open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+  &--open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+}
+
+// ── Mobile nav drawer ─────────────────────────────────────────────────────────
+.mobile-nav {
+  display: flex;
+  flex-direction: column;
+  background: $surface-container;
+  border-top: 1px solid $outline-variant;
+  animation: mobileNavIn 180ms ease;
+
+  @media (min-width: 768px) {
+    display: none;
+  }
+}
+
+@keyframes mobileNavIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.mobile-nav__link {
+  font-size: 15px;
+  font-weight: 500;
+  color: $on-surface-variant;
+  text-decoration: none;
+  padding: 16px 24px;
+  border-bottom: 1px solid $outline-variant;
+  transition: color 150ms, background 150ms;
+  -webkit-tap-highlight-color: transparent;
+
+  &:hover,
+  &:active {
+    color: $on-surface;
+    background: rgba($primary, 0.05);
+    text-decoration: none;
+  }
+
+  &--active {
+    color: $primary;
+    font-weight: 600;
+  }
+}
+
+.mobile-nav__footer {
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.mobile-btn-primary {
+  background: $primary;
+  color: $on-primary;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 2px;
+  text-decoration: none;
+  transition: background 200ms;
+
+  &:hover {
+    background: $primary-fixed;
+    text-decoration: none;
+  }
+}
+
+.mobile-link-github {
+  font-size: 13px;
   color: $on-surface-variant;
   text-decoration: none;
   transition: color 200ms;

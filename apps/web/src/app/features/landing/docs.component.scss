@@ -34,13 +34,22 @@ $r-xl: 8px;
 .page-content {
   display: flex;
   flex-direction: column;
-  gap: $section-gap;
-  padding-bottom: $section-gap;
+  gap: 48px;
+  padding-bottom: 48px;
+
+  @media (min-width: 768px) {
+    gap: $section-gap;
+    padding-bottom: $section-gap;
+  }
 }
 
 // Hero
 .page-hero {
-  padding: $section-gap 0 0;
+  padding: 48px 0 0;
+
+  @media (min-width: 768px) {
+    padding: $section-gap 0 0;
+  }
 
   .container {
     display: flex;
@@ -261,12 +270,16 @@ $r-xl: 8px;
   background: $surface-container;
   border: 1px solid $outline-variant;
   border-radius: $r-xl;
-  padding: 3rem;
+  padding: 2rem 1.5rem;
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1.25rem;
+
+  @media (min-width: 768px) {
+    padding: 3rem;
+  }
 }
 
 .cta-title {

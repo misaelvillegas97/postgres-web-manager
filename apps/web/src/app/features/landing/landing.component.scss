@@ -49,10 +49,15 @@ $r-xl: 8px;
 .page-main {
   max-width: $container-max;
   margin: 0 auto;
-  padding: $section-gap $gutter;
+  padding: 48px $gutter;
   display: flex;
   flex-direction: column;
-  gap: 140px;
+  gap: 64px;
+
+  @media (min-width: 768px) {
+    padding: $section-gap $gutter;
+    gap: 140px;
+  }
 }
 
 // ── Hero ─────────────────────────────────────────────────────────────────────
@@ -74,10 +79,10 @@ $r-xl: 8px;
 }
 
 .hero-title {
-  font-size: 24px;
-  line-height: 32px;
+  font-size: clamp(22px, 5vw, 44px);
+  line-height: 1.15;
   letter-spacing: -0.02em;
-  font-weight: 600;
+  font-weight: 700;
   color: $on-surface;
   margin: 0;
 }
@@ -486,12 +491,16 @@ $r-xl: 8px;
   background: $surface-container;
   border: 1px solid $outline-variant;
   border-radius: $r-xl;
-  padding: 3rem;
+  padding: 2rem 1.5rem;
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1.5rem;
+
+  @media (min-width: 768px) {
+    padding: 3rem;
+  }
 }
 
 .cta-title {

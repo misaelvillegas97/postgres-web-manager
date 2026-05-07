@@ -1,7 +1,7 @@
 <header class="site-header">
   <div class="container header-inner">
     <div class="header-left">
-      <a class="site-logo" routerLink="/">PgStudio Gateway</a>
+      <a class="site-logo" routerLink="/" (click)="closeMenu()">PgStudio Gateway</a>
       <nav class="header-nav">
         <a [routerLinkActiveOptions]="{exact:true}" class="nav-link" routerLink="/" routerLinkActive="nav-link--active">Product</a>
         <a class="nav-link" routerLink="/cloud" routerLinkActive="nav-link--active">Cloud</a>
@@ -14,9 +14,64 @@
     <div class="header-actions">
       <a class="link-github" href="https://github.com/misaelvillegas97/postgres-web-manager" rel="noopener noreferrer"
          target="_blank">GitHub</a>
-      <a class="btn-try-cloud" routerLink="/login">Try Cloud</a>
+      <a class="btn-try-cloud" routerLink="/login" (click)="closeMenu()">Try Cloud</a>
+      <button
+        [class.hamburger--open]="menuOpen()"
+        (click)="toggleMenu()"
+        aria-label="Toggle navigation menu"
+        class="hamburger"
+        type="button">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
     </div>
   </div>
+
+  <!-- Mobile navigation drawer -->
+  @if (menuOpen()) {
+    <nav class="mobile-nav">
+      <a
+        [routerLinkActiveOptions]="{exact:true}"
+        class="mobile-nav__link"
+        routerLink="/"
+        routerLinkActive="mobile-nav__link--active"
+        (click)="closeMenu()">Product</a>
+      <a
+        class="mobile-nav__link"
+        routerLink="/cloud"
+        routerLinkActive="mobile-nav__link--active"
+        (click)="closeMenu()">Cloud</a>
+      <a
+        class="mobile-nav__link"
+        routerLink="/self-hosted"
+        routerLinkActive="mobile-nav__link--active"
+        (click)="closeMenu()">Self-Hosted</a>
+      <a
+        class="mobile-nav__link"
+        routerLink="/deploy"
+        routerLinkActive="mobile-nav__link--active"
+        (click)="closeMenu()">Deploy</a>
+      <a
+        class="mobile-nav__link"
+        routerLink="/docs"
+        routerLinkActive="mobile-nav__link--active"
+        (click)="closeMenu()">Docs</a>
+      <a
+        class="mobile-nav__link"
+        routerLink="/pricing"
+        routerLinkActive="mobile-nav__link--active"
+        (click)="closeMenu()">Pricing</a>
+      <div class="mobile-nav__footer">
+        <a class="mobile-btn-primary" routerLink="/login" (click)="closeMenu()">Probar Cloud</a>
+        <a
+          class="mobile-link-github"
+          href="https://github.com/misaelvillegas97/postgres-web-manager"
+          rel="noopener noreferrer"
+          target="_blank">GitHub ↗</a>
+      </div>
+    </nav>
+  }
 </header>
 
 <router-outlet />
