@@ -8,8 +8,12 @@ import {
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import type {
+  ConfirmEmailDto,
+  ForgotPasswordDto,
   LoginDto,
   RefreshTokenDto,
+  RegisterDto,
+  ResetPasswordDto,
 } from '@postgres-web-manager/contracts';
 import type { Request } from 'express';
 import { Public } from '../../decorators/public.decorator';
@@ -22,6 +26,26 @@ export class AuthController {
   @Post('login')
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  @Post('register')
+  register(@Body() dto: RegisterDto) {
+    return this.authService.register(dto);
+  }
+
+  @Post('confirm-email')
+  confirmEmail(@Body() dto: ConfirmEmailDto) {
+    return this.authService.confirmEmail(dto);
+  }
+
+  @Post('forgot-password')
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto);
+  }
+
+  @Post('reset-password')
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
   }
 
   @Post('refresh')

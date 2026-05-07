@@ -9,6 +9,10 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const isRefreshRequest = req.url.includes('/auth/refresh');
   const isAuthMutation =
     req.url.includes('/auth/login') ||
+    req.url.includes('/auth/register') ||
+    req.url.includes('/auth/confirm-email') ||
+    req.url.includes('/auth/forgot-password') ||
+    req.url.includes('/auth/reset-password') ||
     req.url.includes('/auth/logout') ||
     isRefreshRequest;
 

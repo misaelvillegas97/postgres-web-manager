@@ -1,26 +1,67 @@
 <header class="site-header">
   <div class="container header-inner">
     <div class="header-left">
-      <a class="site-logo" routerLink="/" (click)="closeMenu()">PgStudio Gateway</a>
+      <a class="site-logo" routerLink="/" (click)="closeMenu()"
+        >PgStudio Gateway</a
+      >
       <nav class="header-nav">
-        <a [routerLinkActiveOptions]="{exact:true}" class="nav-link" routerLink="/" routerLinkActive="nav-link--active">Product</a>
-        <a class="nav-link" routerLink="/cloud" routerLinkActive="nav-link--active">Cloud</a>
-        <a class="nav-link" routerLink="/self-hosted" routerLinkActive="nav-link--active">Self-Hosted</a>
-        <a class="nav-link" routerLink="/deploy" routerLinkActive="nav-link--active">Deploy</a>
-        <a class="nav-link" routerLink="/docs" routerLinkActive="nav-link--active">Docs</a>
-        <a class="nav-link" routerLink="/pricing" routerLinkActive="nav-link--active">Pricing</a>
+        <a
+          [routerLinkActiveOptions]="{ exact: true }"
+          class="nav-link"
+          routerLink="/"
+          routerLinkActive="nav-link--active"
+          >Product</a
+        >
+        <a
+          class="nav-link"
+          routerLink="/cloud"
+          routerLinkActive="nav-link--active"
+          >Cloud</a
+        >
+        <a
+          class="nav-link"
+          routerLink="/self-hosted"
+          routerLinkActive="nav-link--active"
+          >Self-Hosted</a
+        >
+        <a
+          class="nav-link"
+          routerLink="/deploy"
+          routerLinkActive="nav-link--active"
+          >Deploy</a
+        >
+        <a
+          class="nav-link"
+          routerLink="/docs"
+          routerLinkActive="nav-link--active"
+          >Docs</a
+        >
+        <a
+          class="nav-link"
+          routerLink="/pricing"
+          routerLinkActive="nav-link--active"
+          >Pricing</a
+        >
       </nav>
     </div>
     <div class="header-actions">
-      <a class="link-github" href="https://github.com/misaelvillegas97/postgres-web-manager" rel="noopener noreferrer"
-         target="_blank">GitHub</a>
-      <a class="btn-try-cloud" routerLink="/login" (click)="closeMenu()">Try Cloud</a>
+      <a
+        class="link-github"
+        href="https://github.com/misaelvillegas97/postgres-web-manager"
+        rel="noopener noreferrer"
+        target="_blank"
+        >GitHub</a
+      >
+      <a class="btn-try-cloud" routerLink="/login" (click)="closeMenu()"
+        >Try Cloud</a
+      >
       <button
         [class.hamburger--open]="menuOpen()"
         (click)="toggleMenu()"
         aria-label="Toggle navigation menu"
         class="hamburger"
-        type="button">
+        type="button"
+      >
         <span></span>
         <span></span>
         <span></span>
@@ -32,43 +73,59 @@
   @if (menuOpen()) {
     <nav class="mobile-nav">
       <a
-        [routerLinkActiveOptions]="{exact:true}"
+        [routerLinkActiveOptions]="{ exact: true }"
         class="mobile-nav__link"
         routerLink="/"
         routerLinkActive="mobile-nav__link--active"
-        (click)="closeMenu()">Product</a>
+        (click)="closeMenu()"
+        >Product</a
+      >
       <a
         class="mobile-nav__link"
         routerLink="/cloud"
         routerLinkActive="mobile-nav__link--active"
-        (click)="closeMenu()">Cloud</a>
+        (click)="closeMenu()"
+        >Cloud</a
+      >
       <a
         class="mobile-nav__link"
         routerLink="/self-hosted"
         routerLinkActive="mobile-nav__link--active"
-        (click)="closeMenu()">Self-Hosted</a>
+        (click)="closeMenu()"
+        >Self-Hosted</a
+      >
       <a
         class="mobile-nav__link"
         routerLink="/deploy"
         routerLinkActive="mobile-nav__link--active"
-        (click)="closeMenu()">Deploy</a>
+        (click)="closeMenu()"
+        >Deploy</a
+      >
       <a
         class="mobile-nav__link"
         routerLink="/docs"
         routerLinkActive="mobile-nav__link--active"
-        (click)="closeMenu()">Docs</a>
+        (click)="closeMenu()"
+        >Docs</a
+      >
       <a
         class="mobile-nav__link"
         routerLink="/pricing"
         routerLinkActive="mobile-nav__link--active"
-        (click)="closeMenu()">Pricing</a>
+        (click)="closeMenu()"
+        >Pricing</a
+      >
       <div class="mobile-nav__footer">
-        <a class="mobile-btn-primary" routerLink="/login" (click)="closeMenu()">Probar Cloud</a>
+        <a class="mobile-btn-primary" routerLink="/login" (click)="closeMenu()"
+          >Probar Cloud</a
+        >
         <a
           class="mobile-link-github"
           href="https://github.com/misaelvillegas97/postgres-web-manager"
           rel="noopener noreferrer"
-          target="_blank">GitHub ↗</a>
+          target="_blank"
+          >GitHub ↗</a
+        >
       </div>
     </nav>
   }
@@ -79,13 +136,22 @@
 <footer class="site-footer">
   <div class="container footer-inner">
     <span class="footer-brand">PgStudio Gateway</span>
-    <span class="footer-copy">© 2026 PgStudio Gateway. Built for architectural precision.</span>
+    <div class="footer-meta">
+      <span class="footer-copy"
+        >© 2026 PgStudio Gateway. Built for architectural precision.</span
+      >
+    </div>
     <nav class="footer-links">
       <a class="footer-link" routerLink="/pricing">Pricing</a>
       <a class="footer-link" routerLink="/deploy">Deploy</a>
       <a class="footer-link" routerLink="/docs">Docs</a>
-      <a class="footer-link" href="https://github.com/misaelvillegas97/postgres-web-manager" rel="noopener noreferrer"
-         target="_blank">GitHub</a>
+      <a
+        class="footer-link"
+        href="https://github.com/misaelvillegas97/postgres-web-manager"
+        rel="noopener noreferrer"
+        target="_blank"
+        >GitHub</a
+      >
     </nav>
   </div>
 </footer>

@@ -85,7 +85,9 @@ $gutter: 24px;
   align-items: center;
   padding: 0 12px;
   border-bottom: 2px solid transparent;
-  transition: color 200ms, background 200ms;
+  transition:
+    color 200ms,
+    background 200ms;
 
   &:hover {
     color: $on-surface;
@@ -171,6 +173,14 @@ $gutter: 24px;
   color: $outline;
 }
 
+.footer-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  text-align: center;
+}
+
 .footer-links {
   display: flex;
   gap: 1.5rem;
@@ -214,12 +224,22 @@ $gutter: 24px;
     height: 2px;
     background: $on-surface;
     border-radius: 2px;
-    transition: transform 250ms ease, opacity 200ms, transform 250ms;
+    transition:
+      transform 250ms ease,
+      opacity 200ms,
+      transform 250ms;
   }
 
-  &--open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-  &--open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
-  &--open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+  &--open span:nth-child(1) {
+    transform: translateY(7px) rotate(45deg);
+  }
+  &--open span:nth-child(2) {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+  &--open span:nth-child(3) {
+    transform: translateY(-7px) rotate(-45deg);
+  }
 }
 
 // ── Mobile nav drawer ─────────────────────────────────────────────────────────
@@ -236,8 +256,14 @@ $gutter: 24px;
 }
 
 @keyframes mobileNavIn {
-  from { opacity: 0; transform: translateY(-6px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .mobile-nav__link {
@@ -247,7 +273,9 @@ $gutter: 24px;
   text-decoration: none;
   padding: 16px 24px;
   border-bottom: 1px solid $outline-variant;
-  transition: color 150ms, background 150ms;
+  transition:
+    color 150ms,
+    background 150ms;
   -webkit-tap-highlight-color: transparent;
 
   &:hover,

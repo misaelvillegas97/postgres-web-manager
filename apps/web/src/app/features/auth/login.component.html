@@ -4,11 +4,25 @@
 
   <div class="login-card">
     <div class="login-card__header">
-      <h1 class="login-card__title">Sign in</h1>
-      <p class="login-card__sub">Continue to PgStudio Gateway</p>
+      <h1 class="login-card__title">{{ title }}</h1>
+      <p class="login-card__sub">{{ subtitle }}</p>
     </div>
 
     <form #f="ngForm" (ngSubmit)="submit()" novalidate>
+      @if (mode() === 'register') {
+        <div class="field">
+          <label for="name">Name</label>
+          <input
+            [(ngModel)]="name"
+            autocomplete="name"
+            id="name"
+            name="name"
+            placeholder="Ada Lovelace"
+            type="text"
+          />
+        </div>
+      }
+
       <div class="field">
         <label for="email">Email</label>
         <input
@@ -22,18 +36,54 @@
         />
       </div>
 
-      <div class="field">
-        <label for="password">Password</label>
-        <input
-          [(ngModel)]="password"
-          autocomplete="current-password"
-          id="password"
-          name="password"
-          placeholder="••••••••"
-          required
-          type="password"
-        />
-      </div>
+      @if (mode() === 'confirm' || mode() === 'reset') {
+        <div class="field">
+          <label for="otp">Verification code</label>
+          <input
+            [(ngModel)]="otp"
+            autocomplete="one-time-code"
+            id="otp"
+            inputmode="numeric"
+            maxlength="6"
+            name="otp"
+            placeholder="000000"
+            required
+            type="text"
+          />
+        </div>
+      }
+
+      @if (mode() === 'login' || mode() === 'register' || mode() === 'reset') {
+        <div class="field">
+          <label for="password">Password</label>
+          <input
+            [(ngModel)]="password"
+            [autocomplete]="
+              mode() === 'login' ? 'current-password' : 'new-password'
+            "
+            id="password"
+            name="password"
+            placeholder="••••••••"
+            required
+            type="password"
+          />
+        </div>
+      }
+
+      @if (mode() === 'register' || mode() === 'reset') {
+        <div class="field">
+          <label for="confirmPassword">Confirm password</label>
+          <input
+            [(ngModel)]="confirmPassword"
+            autocomplete="new-password"
+            id="confirmPassword"
+            name="confirmPassword"
+            placeholder="••••••••"
+            required
+            type="password"
+          />
+        </div>
+      }
 
       @if (error()) {
         <div class="login-error" role="alert">
@@ -42,23 +92,40 @@
         </div>
       }
 
-      <button
-        [disabled]="loading()"
-        class="login-btn"
-        type="submit"
-      >
+      @if (success()) {
+        <div class="login-success" role="status">
+          <span class="material-symbols-outlined">check_circle</span>
+          {{ success() }}
+        </div>
+      }
+
+      <button [disabled]="loading()" class="login-btn" type="submit">
         @if (loading()) {
           <span class="spinner"></span>
-          Signing in…
+          Working...
         } @else {
-          Sign in
+          {{ submitLabel }}
         }
       </button>
     </form>
 
-    <p class="login-hint">
-      <span class="material-symbols-outlined">info</span>
-      Dev: <code>admin&#64;pgstudio.local</code> / <code>dev-password</code>
-    </p>
+    <div class="auth-links">
+      @if (mode() === 'login') {
+        <a routerLink="/forgot-password">Forgot password?</a>
+        <a routerLink="/register">Create account</a>
+      } @else if (mode() === 'register') {
+        <a routerLink="/login">Sign in</a>
+        <a routerLink="/confirm-email">Confirm email</a>
+      } @else if (mode() === 'confirm') {
+        <a routerLink="/login">Sign in</a>
+        <a routerLink="/register">Create account</a>
+      } @else if (mode() === 'forgot') {
+        <a routerLink="/login">Sign in</a>
+        <a routerLink="/reset-password">Enter code</a>
+      } @else {
+        <a routerLink="/login">Sign in</a>
+        <a routerLink="/forgot-password">Send another code</a>
+      }
+    </div>
   </div>
 </div>

@@ -10,6 +10,40 @@ export interface LoginDto {
   password: string;
 }
 
+export interface RegisterDto {
+  email: string;
+  password: string;
+  name?: string;
+  workspaceName?: string;
+}
+
+export enum AuthOtpPurpose {
+  EMAIL_CONFIRMATION = 'EMAIL_CONFIRMATION',
+  PASSWORD_RESET = 'PASSWORD_RESET',
+}
+
+export interface ConfirmEmailDto {
+  email: string;
+  otp: string;
+}
+
+export interface ForgotPasswordDto {
+  email: string;
+}
+
+export interface ResetPasswordDto {
+  email: string;
+  otp: string;
+  password: string;
+}
+
+export interface AuthMessageResponse {
+  success: boolean;
+  message: string;
+  expiresIn?: number;
+  devOtp?: string;
+}
+
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
@@ -22,6 +56,7 @@ export interface UserProfile {
   name: string;
   role: UserRole;
   workspaceId: string;
+  emailVerified: boolean;
 }
 
 export interface RefreshTokenDto {

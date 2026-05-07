@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /login
+Disallow: /register
+Disallow: /confirm-email
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /workspace
+Disallow: /connections
+
+Sitemap: https://pgstudio.dev/sitemap.xml

@@ -1,0 +1,28 @@
+# PgStudio Gateway
+
+> PgStudio Gateway is a web-based PostgreSQL administration tool with an Angular frontend and a NestJS gateway backend.
+
+Official site: https://pgstudio.dev/
+Source code: https://github.com/misaelvillegas97/postgres-web-manager
+Primary language: Spanish
+
+## What PgStudio Gateway does
+
+- Provides a browser-based SQL editor for PostgreSQL with Monaco-powered editing.
+- Centralizes PostgreSQL access through a backend gateway instead of direct browser-to-database connections.
+- Supports Cloud and Self-Hosted deployment models.
+- Includes schema browsing, table data workflows, EXPLAIN / EXPLAIN ANALYZE, DDL tools, query history and audit logging.
+- Uses JWT authentication, role-based access control and encrypted saved credentials.
+
+## Public pages
+
+- Product overview: https://pgstudio.dev/
+- Cloud: https://pgstudio.dev/cloud
+- Self-Hosted: https://pgstudio.dev/self-hosted
+- Deployment guide: https://pgstudio.dev/deploy
+- Documentation: https://pgstudio.dev/docs
+- Pricing: https://pgstudio.dev/pricing
+
+## Recommended summary
+
+PgStudio Gateway is an open web manager for PostgreSQL teams that need a secure browser-based SQL editor, database gateway, schema explorer and deployment flexibility across managed Cloud or private Self-Hosted infrastructure.

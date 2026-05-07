@@ -9,7 +9,7 @@ $on-surface-variant: #c2c6d6;
 $outline: #8c909f;
 $outline-variant: #424753;
 $error: #ffb4ab;
-$font-mono: 'JetBrains Mono', monospace;
+$success: #8bd8a6;
 
 :host {
   display: block;
@@ -30,7 +30,7 @@ $font-mono: 'JetBrains Mono', monospace;
   font-family: 'Inter', sans-serif;
   font-size: 20px;
   font-weight: 700;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
   color: $on-surface;
   text-decoration: none;
   align-self: flex-start;
@@ -66,7 +66,7 @@ $font-mono: 'JetBrains Mono', monospace;
   font-size: 24px;
   font-weight: 600;
   line-height: 32px;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
   color: $on-surface;
   margin: 0;
 }
@@ -135,6 +135,27 @@ form {
   }
 }
 
+.login-success {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  margin-top: -4px;
+
+  .material-symbols-outlined {
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+}
+
+.login-success {
+  background: rgba(139, 216, 166, 0.08);
+  border: 1px solid rgba(139, 216, 166, 0.2);
+  color: $success;
+}
+
 .login-btn {
   display: flex;
   align-items: center;
@@ -163,23 +184,33 @@ form {
   }
 }
 
-.login-hint {
+.auth-links {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: $outline;
-  text-align: center;
-  justify-content: center;
-  margin: 0;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: -12px;
 
-  .material-symbols-outlined {
-    font-size: 14px;
+  a {
+    color: $primary;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+
+    &:hover {
+      color: $primary-fixed;
+    }
+  }
+}
+
+@media (max-width: 520px) {
+  .login-root {
+    justify-content: flex-start;
+    padding-top: 88px;
   }
 
-  code {
-    font-family: $font-mono;
-    color: $on-surface-variant;
-    font-size: 11px;
+  .login-card {
+    padding: 32px 24px 28px;
   }
 }

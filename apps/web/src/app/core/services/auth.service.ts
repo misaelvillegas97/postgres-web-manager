@@ -9,6 +9,7 @@ export interface UserProfile {
   name?: string;
   role: string;
   workspaceId?: string;
+  emailVerified?: boolean;
 }
 
 export interface AuthTokens {
@@ -20,6 +21,13 @@ export interface AuthTokens {
 export interface AuthResponse {
   user: UserProfile;
   tokens: AuthTokens;
+}
+
+export interface AuthMessageResponse {
+  success: boolean;
+  message: string;
+  expiresIn?: number;
+  devOtp?: string;
 }
 
 const ACCESS_TOKEN_KEY = 'pgstudio_at';
@@ -57,6 +65,35 @@ export class AuthService {
           this._user.set(response.user);
         }),
       );
+  }
+
+  register(email: string, password: string, name?: string) {
+    return this.http.post<AuthMessageResponse>('/api/auth/register', {
+      email,
+      password,
+      name,
+    });
+  }
+
+  confirmEmail(email: string, otp: string) {
+    return this.http.post<AuthMessageResponse>('/api/auth/confirm-email', {
+      email,
+      otp,
+    });
+  }
+
+  forgotPassword(email: string) {
+    return this.http.post<AuthMessageResponse>('/api/auth/forgot-password', {
+      email,
+    });
+  }
+
+  resetPassword(email: string, otp: string, password: string) {
+    return this.http.post<AuthMessageResponse>('/api/auth/reset-password', {
+      email,
+      otp,
+      password,
+    });
   }
 
   refresh() {
