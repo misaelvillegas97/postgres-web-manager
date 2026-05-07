@@ -17,8 +17,8 @@ COPY libs/contracts ./libs/contracts
 
 RUN npx nx sync
 RUN npx nx build @postgres-web-manager/contracts
-RUN npx nx build @org/api
 RUN npx nx build web --configuration=production
+RUN npx nx run @org/api:prune
 
 FROM node:20-alpine AS production
 
@@ -26,8 +26,11 @@ RUN apk add --no-cache nginx gettext
 
 WORKDIR /app
 
-COPY --from=build /workspace/apps/api/dist ./api/dist
-COPY --from=build /workspace/apps/api/package*.json ./api/
+COPY --from=build /workspace/apps/api/dist/main.js ./api/dist/main.js
+COPY --from=build /workspace/apps/api/dist/main.js.map ./api/dist/main.js.map
+COPY --from=build /workspace/apps/api/dist/migrations ./api/dist/migrations
+COPY --from=build /workspace/apps/api/dist/package*.json ./api/
+COPY --from=build /workspace/apps/api/dist/workspace_modules ./api/workspace_modules
 COPY --from=build /workspace/dist/apps/web/browser /usr/share/nginx/html
 COPY docker/nginx.all-in-one.conf.template /etc/nginx/templates/default.conf.template
 COPY docker/all-in-one-entrypoint.sh /usr/local/bin/pgstudio-entrypoint
