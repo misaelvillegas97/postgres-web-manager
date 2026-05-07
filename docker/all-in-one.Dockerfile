@@ -33,7 +33,7 @@ COPY docker/nginx.all-in-one.conf.template /etc/nginx/templates/default.conf.tem
 COPY docker/all-in-one-entrypoint.sh /usr/local/bin/pgstudio-entrypoint
 
 RUN chmod +x /usr/local/bin/pgstudio-entrypoint \
-  && mkdir -p /run/nginx \
+  && mkdir -p /run/nginx /etc/nginx/http.d /etc/nginx/templates \
   && cd /app/api \
   && npm install --omit=dev --no-audit --no-fund
 

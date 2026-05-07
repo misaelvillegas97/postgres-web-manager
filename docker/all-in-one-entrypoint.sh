@@ -16,12 +16,14 @@ cleanup() {
 
 trap cleanup INT TERM
 
+mkdir -p /etc/nginx/http.d /run/nginx
+
 PORT="$API_PORT" node /app/api/dist/main.js &
 API_PID="$!"
 
 envsubst '$API_PROXY_URL $PUBLIC_PORT' \
   < /etc/nginx/templates/default.conf.template \
-  > /etc/nginx/conf.d/default.conf
+  > /etc/nginx/http.d/default.conf
 
 nginx -g 'daemon off;' &
 NGINX_PID="$!"
