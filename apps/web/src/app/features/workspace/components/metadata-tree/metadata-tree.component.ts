@@ -49,7 +49,7 @@ export interface TreeNode {
         class="tree-node__chevron"
         [class.tree-node__chevron--open]="node.expanded"
       >
-        {{ hasKids() ? '▶' : ' ' }}
+        {{ hasKids() ? '▶' : '' }}
       </span>
       <span class="tree-node__icon">{{ node.icon }}</span>
       <span class="tree-node__label">{{ node.label }}</span>
