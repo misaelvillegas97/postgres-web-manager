@@ -28,7 +28,6 @@ WORKDIR /app
 
 COPY --from=build /workspace/apps/api/dist/main.js ./api/dist/main.js
 COPY --from=build /workspace/apps/api/dist/main.js.map ./api/dist/main.js.map
-COPY --from=build /workspace/apps/api/dist/migrations ./api/dist/migrations
 COPY --from=build /workspace/apps/api/dist/package*.json ./api/
 COPY --from=build /workspace/apps/api/dist/workspace_modules ./api/workspace_modules
 COPY --from=build /workspace/dist/apps/web/browser /usr/share/nginx/html
