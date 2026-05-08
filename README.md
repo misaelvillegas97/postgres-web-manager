@@ -53,7 +53,8 @@ docs
 
 ### Backend (`apps/api`)
 - **NestJS 11** gateway
-- **node-postgres (`pg`)** for PostgreSQL connections
+- **TypeORM** for the internal PgStudio metadata database
+- **node-postgres (`pg`)** for user-managed external PostgreSQL connections
 - **WebSocket** via `@nestjs/websockets` + Socket.IO
 - **JWT authentication** (access 1h + refresh 7d)
 - **Role-based access control** (OWNER > ADMIN > DEVELOPER > READ_ONLY)
@@ -168,6 +169,8 @@ external metadata DB, Railway, Fly.io, Vercel frontend-only, Kubernetes/Helm and
 | `JWT_SECRET`                 | Production | `dev-jwt-secret-not-for-production`         | Secret used to sign access tokens. **Must be changed in production.**                                                                                                    |
 | `JWT_REFRESH_SECRET`         | Production | `dev-jwt-refresh-secret-not-for-production` | Secret used to sign refresh tokens. **Must be changed in production.**                                                                                                   |
 | `CREDENTIALS_ENCRYPTION_KEY` | Production | —                                           | 32+ character key used to encrypt saved PostgreSQL passwords with AES-256-GCM. Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. |
+| `MAIL_FROM`                  | Production | —                                           | Sender email used by Resend for email confirmation and password reset OTP messages.                                                                                      |
+| `RESEND_API_KEY`             | Production | —                                           | Resend API key used to deliver OTP emails.                                                                                                                               |
 | `PORT`                       | No         | `3000`                                      | HTTP port the API listens on                                                                                                                                             |
 | `NODE_ENV`                   | No         | `development`                               | `development` or `production`                                                                                                                                            |
 
@@ -357,7 +360,8 @@ pgstudio
 
 ### Backend (`apps/api`)
 - **NestJS 11** gateway
-- **node-postgres (`pg`)** for PostgreSQL connections
+- **TypeORM** for the internal PgStudio metadata database
+- **node-postgres (`pg`)** for user-managed external PostgreSQL connections
 - **WebSocket** via `@nestjs/websockets` + Socket.IO
 - Modular architecture: auth, connections, query, metadata, table-data, ddl, explain, sessions
 

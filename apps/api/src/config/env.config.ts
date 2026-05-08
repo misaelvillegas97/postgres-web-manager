@@ -1,4 +1,9 @@
+import { config as loadDotenv } from 'dotenv';
+import * as path from 'path';
 import { z } from 'zod';
+
+loadDotenv({ path: path.resolve(process.cwd(), '.env') });
+loadDotenv({ path: path.resolve(process.cwd(), 'apps/api/.env') });
 
 const envSchema = z.object({
   PORT: z.preprocess(
@@ -28,6 +33,12 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(32).optional(),
   JWT_REFRESH_SECRET: z.string().min(32).optional(),
 
+  MAIL_FROM: z.string().email('MAIL_FROM must be a valid email').optional(),
+  RESEND_API_KEY: z
+    .string()
+    .min(1, 'RESEND_API_KEY must not be empty')
+    .optional(),
+
   CORS_ORIGIN: z.string().optional().default('*'),
 });
 
@@ -43,7 +54,7 @@ function formatZodIssues(error: z.ZodError): string {
 
 /**
  * Validates and returns the parsed environment configuration.
- * In production, DATABASE_URL and CREDENTIALS_ENCRYPTION_KEY are required.
+ * In production, database, auth, encryption and mail delivery settings are required.
  * Call this once at bootstrap time.
  */
 export function validateEnv(env: NodeJS.ProcessEnv = process.env): AppEnv {
@@ -63,6 +74,8 @@ export function validateEnv(env: NodeJS.ProcessEnv = process.env): AppEnv {
       JWT_REFRESH_SECRET: z
         .string()
         .min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
+      MAIL_FROM: z.string().email('MAIL_FROM must be a valid email'),
+      RESEND_API_KEY: z.string().min(1, 'RESEND_API_KEY must not be empty'),
       CORS_ORIGIN: z
         .string()
         .min(1, 'CORS_ORIGIN must not be empty')

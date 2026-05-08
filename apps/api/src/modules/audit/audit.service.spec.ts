@@ -1,24 +1,38 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
+import type { DataSource, Repository } from 'typeorm';
 import { AuditEventDto, AuditService } from './audit.service';
-import { INTERNAL_DB_POOL } from '../../database/database.module';
+import { INTERNAL_DATA_SOURCE } from '../../database/database.module';
+import { AuditLogEntity } from '../../database/entities';
 import { SqlRiskLevel } from '@postgres-web-manager/contracts';
 
-function buildMockPool(overrides: Partial<{ query: jest.Mock }> = {}) {
-  return { query: jest.fn().mockResolvedValue({ rows: [] }), ...overrides };
+type MockAuditRepository = jest.Mocked<
+  Pick<Repository<AuditLogEntity>, 'insert' | 'findAndCount'>
+>;
+
+function buildMockDataSource(repository: MockAuditRepository): DataSource {
+  return {
+    getRepository: jest.fn().mockReturnValue(repository),
+  } as unknown as DataSource;
 }
 
 describe('AuditService', () => {
   let service: AuditService;
-  let mockDb: { query: jest.Mock };
+  let mockRepository: MockAuditRepository;
 
   beforeEach(async () => {
-    mockDb = buildMockPool();
+    mockRepository = {
+      insert: jest.fn().mockResolvedValue({}),
+      findAndCount: jest.fn().mockResolvedValue([[], 0]),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuditService,
-        { provide: INTERNAL_DB_POOL, useValue: mockDb },
+        {
+          provide: INTERNAL_DATA_SOURCE,
+          useValue: buildMockDataSource(mockRepository),
+        },
       ],
     }).compile();
 
@@ -39,23 +53,23 @@ describe('AuditService', () => {
     it('inserts audit log row into DB', async () => {
       await service.log(baseEvent);
 
-      expect(mockDb.query).toHaveBeenCalledTimes(1);
-      const [sql, params] = mockDb.query.mock.calls[0] as [string, unknown[]];
-      expect(sql).toContain('INSERT INTO audit_logs');
-      expect(params[0]).toBe('ws-001');
-      expect(params[1]).toBe('conn-abc');
-      expect(params[2]).toBe('usr-001');
-      expect(params[3]).toBe('EXECUTE_QUERY');
-      expect(params[4]).toBe(SqlRiskLevel.WRITE);
+      expect(mockRepository.insert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workspaceId: 'ws-001',
+          connectionId: 'conn-abc',
+          userId: 'usr-001',
+          action: 'EXECUTE_QUERY',
+          riskLevel: SqlRiskLevel.WRITE,
+        }),
+      );
     });
 
     it('truncates sqlPreview to 500 characters', async () => {
       const longSql = 'SELECT ' + 'x'.repeat(600);
       await service.log({ ...baseEvent, sqlPreview: longSql });
 
-      const [, params] = mockDb.query.mock.calls[0] as [string, unknown[]];
-      const preview = params[6] as string;
-      expect(preview.length).toBe(500);
+      const [inserted] = mockRepository.insert.mock.calls[0];
+      expect(inserted.sqlPreview).toHaveLength(500);
     });
 
     it('sets sqlPreview to null when not provided', async () => {
@@ -63,15 +77,15 @@ describe('AuditService', () => {
       delete eventWithoutSql.sqlPreview;
       await service.log(eventWithoutSql);
 
-      const [, params] = mockDb.query.mock.calls[0] as [string, unknown[]];
-      expect(params[6]).toBeNull();
+      const [inserted] = mockRepository.insert.mock.calls[0];
+      expect(inserted.sqlPreview).toBeNull();
     });
 
     it('does not throw when DB fails (audit must not block main op)', async () => {
       const errorSpy = jest
         .spyOn(Logger.prototype, 'error')
         .mockImplementation();
-      mockDb.query.mockRejectedValueOnce(new Error('DB down'));
+      mockRepository.insert.mockRejectedValueOnce(new Error('DB down'));
       try {
         await expect(service.log(baseEvent)).resolves.not.toThrow();
       } finally {
@@ -79,11 +93,11 @@ describe('AuditService', () => {
       }
     });
 
-    it('skips DB insert and logs debug when pool is null', async () => {
+    it('skips DB insert and logs debug when data source is null', async () => {
       const moduleNoDb: TestingModule = await Test.createTestingModule({
         providers: [
           AuditService,
-          { provide: INTERNAL_DB_POOL, useValue: null },
+          { provide: INTERNAL_DATA_SOURCE, useValue: null },
         ],
       }).compile();
 
@@ -95,36 +109,32 @@ describe('AuditService', () => {
   describe('findAll()', () => {
     it('returns rows and total for a given workspace', async () => {
       const fakeRows = [
-        { id: '1', action: 'EXECUTE_QUERY', risk_level: SqlRiskLevel.SAFE },
-      ];
-      mockDb.query
-        .mockResolvedValueOnce({ rows: fakeRows }) // first query: data
-        .mockResolvedValueOnce({ rows: [{ total: '3' }] }); // second: count
+        { id: '1', action: 'EXECUTE_QUERY', riskLevel: SqlRiskLevel.SAFE },
+      ] as AuditLogEntity[];
+      mockRepository.findAndCount.mockResolvedValueOnce([fakeRows, 3]);
 
       const result = await service.findAll('ws-001');
 
       expect(result.rows).toEqual(fakeRows);
       expect(result.total).toBe(3);
-      expect(mockDb.query).toHaveBeenCalledTimes(2);
+      expect(mockRepository.findAndCount).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { workspaceId: 'ws-001' } }),
+      );
     });
 
     it('passes limit and offset to query', async () => {
-      mockDb.query
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [{ total: '0' }] });
-
       await service.findAll('ws-001', 25, 50);
 
-      const [, params] = mockDb.query.mock.calls[0] as [string, unknown[]];
-      expect(params[1]).toBe(25);
-      expect(params[2]).toBe(50);
+      expect(mockRepository.findAndCount).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 25, skip: 50 }),
+      );
     });
 
-    it('returns empty result when pool is null', async () => {
+    it('returns empty result when data source is null', async () => {
       const moduleNoDb: TestingModule = await Test.createTestingModule({
         providers: [
           AuditService,
-          { provide: INTERNAL_DB_POOL, useValue: null },
+          { provide: INTERNAL_DATA_SOURCE, useValue: null },
         ],
       }).compile();
 

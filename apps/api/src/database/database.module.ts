@@ -1,47 +1,61 @@
-import { Global, Module } from '@nestjs/common';
-import { Pool } from 'pg';
+import {
+  Global,
+  Inject,
+  Injectable,
+  Logger,
+  Module,
+  OnModuleDestroy,
+} from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { getEnv } from '../config/env.config';
-import { DatabaseMigrationService } from './database-migration.service';
+import { createInternalDataSourceOptions } from './typeorm.config';
 
-const INTERNAL_DB_POOL = 'INTERNAL_DB_POOL';
+const INTERNAL_DATA_SOURCE = 'INTERNAL_DATA_SOURCE';
+
+@Injectable()
+class InternalDataSourceShutdownService implements OnModuleDestroy {
+  constructor(
+    @Inject(INTERNAL_DATA_SOURCE)
+    private readonly dataSource: DataSource | null,
+  ) {}
+
+  async onModuleDestroy(): Promise<void> {
+    if (this.dataSource?.isInitialized) {
+      await this.dataSource.destroy();
+    }
+  }
+}
 
 @Global()
 @Module({
   providers: [
     {
-      provide: INTERNAL_DB_POOL,
-      useFactory: () => {
+      provide: INTERNAL_DATA_SOURCE,
+      useFactory: async () => {
+        const logger = new Logger('InternalDataSource');
         const env = getEnv();
         if (!env.DATABASE_URL) {
-          // In development without DATABASE_URL, return a placeholder
-          // Services that need the DB will fail fast when they try to query
+          logger.warn(
+            'DATABASE_URL is not configured; internal database is disabled.',
+          );
           return null;
         }
-        return new Pool({
-          connectionString: env.DATABASE_URL,
-          max: 10,
-          idleTimeoutMillis: 30000,
-          connectionTimeoutMillis: 5000,
-        });
+
+        const dataSource = new DataSource(
+          createInternalDataSourceOptions(env.DATABASE_URL),
+        );
+        await dataSource.initialize();
+        await dataSource.runMigrations({ transaction: 'each' });
+        logger.log(
+          'Internal database connected and migrations are up to date.',
+        );
+        return dataSource;
       },
     },
-    {
-      provide: DatabaseMigrationService,
-      useFactory: (pool: Pool | null) => {
-        if (!pool) {
-          return {
-            onModuleInit: () => {
-              /* skip migrations when no internal DB is configured */
-            },
-          };
-        }
-        return new DatabaseMigrationService(pool);
-      },
-      inject: [INTERNAL_DB_POOL],
-    },
+    InternalDataSourceShutdownService,
   ],
-  exports: [INTERNAL_DB_POOL, DatabaseMigrationService],
+  exports: [INTERNAL_DATA_SOURCE],
 })
 export class DatabaseModule {}
 
-export { INTERNAL_DB_POOL };
+export { INTERNAL_DATA_SOURCE };

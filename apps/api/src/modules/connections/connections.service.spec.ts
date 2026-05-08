@@ -1,34 +1,68 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
+import type { DataSource } from 'typeorm';
 import { ConnectionsService } from './connections.service';
-import { INTERNAL_DB_POOL } from '../../database/database.module';
+import { INTERNAL_DATA_SOURCE } from '../../database/database.module';
+import { ConnectionProfileEntity } from '../../database/entities';
 import { CredentialsEncryptionService } from '../../crypto/credentials-encryption.service';
 import { PostgresPoolManager } from '../../postgres/postgres-pool.manager';
 import { CreateConnectionDto } from '@postgres-web-manager/contracts';
 import { SessionRegistryService } from '../sessions/session-registry.service';
 
-const mockRow = {
-  id: 'conn-001',
-  workspace_id: 'ws-001',
-  name: 'Local Dev',
-  host: 'localhost',
-  port: 5432,
-  database: 'mydb',
-  username: 'postgres',
-  ssl_mode: 'prefer',
-  access_mode: 'read-write',
-  max_rows: 1000,
-  statement_timeout_ms: 30000,
-  save_password: false,
-  created_at: new Date(),
-  updated_at: new Date(),
+const createdAt = new Date('2026-05-03T00:00:00.000Z');
+const updatedAt = new Date('2026-05-03T00:00:00.000Z');
+
+function buildEntity(
+  overrides: Partial<ConnectionProfileEntity> = {},
+): ConnectionProfileEntity {
+  return {
+    id: 'conn-001',
+    workspaceId: 'ws-001',
+    name: 'Local Dev',
+    host: 'localhost',
+    port: 5432,
+    database: 'mydb',
+    username: 'postgres',
+    passwordEncrypted: null,
+    sslMode: 'prefer',
+    accessMode: 'read-write',
+    maxRows: 1000,
+    statementTimeoutMs: 30000,
+    savePassword: false,
+    color: null,
+    notes: null,
+    createdAt,
+    updatedAt,
+    ...overrides,
+  } as ConnectionProfileEntity;
+}
+
+type MockQueryBuilder = {
+  orderBy: jest.Mock;
+  where: jest.Mock;
+  getMany: jest.Mock;
 };
 
-function buildMockPool(overrides: Partial<{ query: jest.Mock }> = {}) {
+type MockConnectionRepository = {
+  createQueryBuilder: jest.Mock;
+  findOne: jest.Mock;
+  create: jest.Mock;
+  save: jest.Mock;
+  delete: jest.Mock;
+};
+
+function buildQueryBuilder(): MockQueryBuilder {
+  const queryBuilder = {} as MockQueryBuilder;
+  queryBuilder.orderBy = jest.fn().mockReturnValue(queryBuilder);
+  queryBuilder.where = jest.fn().mockReturnValue(queryBuilder);
+  queryBuilder.getMany = jest.fn().mockResolvedValue([buildEntity()]);
+  return queryBuilder;
+}
+
+function buildMockDataSource(repository: MockConnectionRepository): DataSource {
   return {
-    query: jest.fn().mockResolvedValue({ rows: [mockRow] }),
-    ...overrides,
-  };
+    getRepository: jest.fn().mockReturnValue(repository),
+  } as unknown as DataSource;
 }
 
 type MockEncryptionService = jest.Mocked<
@@ -47,13 +81,23 @@ type MockSessionRegistry = jest.Mocked<
 
 describe('ConnectionsService', () => {
   let service: ConnectionsService;
-  let mockDb: { query: jest.Mock };
+  let queryBuilder: MockQueryBuilder;
+  let mockRepository: MockConnectionRepository;
   let mockEncryption: MockEncryptionService;
   let mockPoolManager: MockPostgresPoolManager;
   let mockSessionRegistry: MockSessionRegistry;
 
   beforeEach(async () => {
-    mockDb = buildMockPool();
+    queryBuilder = buildQueryBuilder();
+    mockRepository = {
+      createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+      findOne: jest.fn().mockResolvedValue(buildEntity()),
+      create: jest.fn((value: Partial<ConnectionProfileEntity>) =>
+        buildEntity(value),
+      ),
+      save: jest.fn(async (entity: ConnectionProfileEntity) => entity),
+      delete: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
     mockEncryption = {
       encrypt: jest.fn().mockReturnValue('enc-secret'),
       decrypt: jest.fn(),
@@ -73,7 +117,10 @@ describe('ConnectionsService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ConnectionsService,
-        { provide: INTERNAL_DB_POOL, useValue: mockDb },
+        {
+          provide: INTERNAL_DATA_SOURCE,
+          useValue: buildMockDataSource(mockRepository),
+        },
         { provide: CredentialsEncryptionService, useValue: mockEncryption },
         { provide: PostgresPoolManager, useValue: mockPoolManager },
         { provide: SessionRegistryService, useValue: mockSessionRegistry },
@@ -84,11 +131,11 @@ describe('ConnectionsService', () => {
   });
 
   describe('findAll()', () => {
-    it('returns empty array when pool is null', async () => {
+    it('returns empty array when data source is null', async () => {
       const moduleNoDb: TestingModule = await Test.createTestingModule({
         providers: [
           ConnectionsService,
-          { provide: INTERNAL_DB_POOL, useValue: null },
+          { provide: INTERNAL_DATA_SOURCE, useValue: null },
           { provide: CredentialsEncryptionService, useValue: mockEncryption },
           { provide: PostgresPoolManager, useValue: mockPoolManager },
           { provide: SessionRegistryService, useValue: mockSessionRegistry },
@@ -100,28 +147,29 @@ describe('ConnectionsService', () => {
 
     it('passes workspaceId filter to query', async () => {
       await service.findAll('ws-001');
-      const [, params] = mockDb.query.mock.calls[0] as [string, unknown[]];
-      expect(params[0]).toBe('ws-001');
+      expect(queryBuilder.where).toHaveBeenCalledWith(
+        'profile.workspace_id = :workspaceId',
+        { workspaceId: 'ws-001' },
+      );
     });
 
-    it('passes null when workspaceId is omitted', async () => {
+    it('does not filter by workspace when workspaceId is omitted', async () => {
       await service.findAll();
-      const [, params] = mockDb.query.mock.calls[0] as [string, unknown[]];
-      expect(params[0]).toBeNull();
+      expect(queryBuilder.where).not.toHaveBeenCalled();
     });
 
-    it('maps snake_case DB columns to camelCase profile', async () => {
+    it('maps entity fields to camelCase profile', async () => {
       const [profile] = await service.findAll('ws-001');
-      expect(profile.id).toBe(mockRow.id);
-      expect(profile.name).toBe(mockRow.name);
-      expect(profile.sslMode).toBe(mockRow.ssl_mode);
-      expect(profile.accessMode).toBe(mockRow.access_mode);
+      expect(profile.id).toBe('conn-001');
+      expect(profile.name).toBe('Local Dev');
+      expect(profile.sslMode).toBe('prefer');
+      expect(profile.accessMode).toBe('read-write');
     });
   });
 
   describe('findOne()', () => {
     it('throws NotFoundException when DB has no results', async () => {
-      mockDb.query.mockResolvedValueOnce({ rows: [] });
+      mockRepository.findOne.mockResolvedValueOnce(null);
       await expect(service.findOne('missing-id')).rejects.toThrow(
         NotFoundException,
       );
@@ -130,6 +178,9 @@ describe('ConnectionsService', () => {
     it('returns mapped profile when found', async () => {
       const profile = await service.findOne('conn-001', 'ws-001');
       expect(profile.id).toBe('conn-001');
+      expect(mockRepository.findOne).toHaveBeenCalledWith({
+        where: { id: 'conn-001', workspaceId: 'ws-001' },
+      });
     });
   });
 
@@ -141,13 +192,15 @@ describe('ConnectionsService', () => {
       database: 'testdb',
       username: 'test',
       sslMode: 'prefer',
+      accessMode: 'read-write',
     };
 
     it('creates connection without encrypting password when savePassword is false', async () => {
       await service.create(dto, 'ws-001');
       expect(mockEncryption.encrypt).not.toHaveBeenCalled();
-      const [, params] = mockDb.query.mock.calls[0] as [string, unknown[]];
-      expect(params[6]).toBeNull(); // password_encrypted = null
+      expect(mockRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ passwordEncrypted: null }),
+      );
     });
 
     it('encrypts password when savePassword is true', async () => {
@@ -156,20 +209,22 @@ describe('ConnectionsService', () => {
         'ws-001',
       );
       expect(mockEncryption.encrypt).toHaveBeenCalledWith('secret');
-      const [, params] = mockDb.query.mock.calls[0] as [string, unknown[]];
-      expect(params[6]).toBe('enc-secret');
+      expect(mockRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ passwordEncrypted: 'enc-secret' }),
+      );
     });
 
     it('sets workspace_id from caller context', async () => {
       await service.create(dto, 'ws-abc');
-      const [, params] = mockDb.query.mock.calls[0] as [string, unknown[]];
-      expect(params[0]).toBe('ws-abc');
+      expect(mockRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ workspaceId: 'ws-abc' }),
+      );
     });
   });
 
   describe('remove()', () => {
     it('throws NotFoundException when no rows deleted', async () => {
-      mockDb.query.mockResolvedValueOnce({ rowCount: 0, rows: [] });
+      mockRepository.delete.mockResolvedValueOnce({ affected: 0 });
       await expect(service.remove('missing-id')).rejects.toThrow(
         NotFoundException,
       );
@@ -177,14 +232,16 @@ describe('ConnectionsService', () => {
 
     it('calls destroyPool if pool is active', async () => {
       mockPoolManager.hasPool.mockReturnValueOnce(true);
-      mockDb.query.mockResolvedValueOnce({ rowCount: 1, rows: [] });
       await service.remove('conn-001', 'ws-001');
+      expect(mockRepository.delete).toHaveBeenCalledWith({
+        id: 'conn-001',
+        workspaceId: 'ws-001',
+      });
       expect(mockPoolManager.destroyPool).toHaveBeenCalledWith('conn-001');
     });
 
     it('does not call destroyPool when pool is inactive', async () => {
       mockPoolManager.hasPool.mockReturnValueOnce(false);
-      mockDb.query.mockResolvedValueOnce({ rowCount: 1, rows: [] });
       await service.remove('conn-001');
       expect(mockPoolManager.destroyPool).not.toHaveBeenCalled();
     });
@@ -207,6 +264,7 @@ describe('ConnectionsService', () => {
         database: 'postgres',
         username: 'postgres',
         password: 'secret',
+        sslMode: 'prefer',
       });
 
       const [poolId] = mockPoolManager.createPool.mock.calls[0];
@@ -279,23 +337,21 @@ describe('ConnectionsService', () => {
     it('clears failed password attempts and disables auto unlock after auth failure', async () => {
       const authError = Object.assign(
         new Error('password authentication failed for user "postgres"'),
-        {
-          code: '28P01',
-        },
+        { code: '28P01' },
       );
       mockPoolManager.getClient.mockRejectedValueOnce(authError);
-      mockDb.query.mockResolvedValueOnce({
-        rows: [{ ...mockRow, password_encrypted: null, save_password: true }],
-      });
+      mockRepository.findOne.mockResolvedValueOnce(
+        buildEntity({ passwordEncrypted: null, savePassword: true }),
+      );
 
       await expect(
         service.unlock('conn-001', 'bad-secret', 'ws-001'),
       ).rejects.toThrow('password authentication failed for user "postgres"');
       expect(mockPoolManager.destroyPool).toHaveBeenCalledWith('conn-001');
 
-      mockDb.query.mockResolvedValueOnce({
-        rows: [{ ...mockRow, save_password: true }],
-      });
+      mockRepository.findOne.mockResolvedValueOnce(
+        buildEntity({ savePassword: true }),
+      );
       mockPoolManager.hasPool.mockReturnValueOnce(false);
       await expect(service.status('conn-001', 'ws-001')).resolves.toMatchObject(
         {
@@ -304,15 +360,9 @@ describe('ConnectionsService', () => {
         },
       );
 
-      mockDb.query.mockResolvedValueOnce({
-        rows: [
-          {
-            ...mockRow,
-            password_encrypted: 'saved-secret',
-            save_password: true,
-          },
-        ],
-      });
+      mockRepository.findOne.mockResolvedValueOnce(
+        buildEntity({ passwordEncrypted: 'saved-secret', savePassword: true }),
+      );
       mockEncryption.decrypt.mockReturnValueOnce('saved-secret');
       await expect(
         service.unlock('conn-001', undefined, 'ws-001'),

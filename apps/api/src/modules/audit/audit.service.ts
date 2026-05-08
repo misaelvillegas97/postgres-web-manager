@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { Pool } from 'pg';
-import { INTERNAL_DB_POOL } from '../../database/database.module';
+import type { DataSource } from 'typeorm';
+import { INTERNAL_DATA_SOURCE } from '../../database/database.module';
+import { AuditLogEntity } from '../../database/entities';
 import { SqlRiskLevel } from '@postgres-web-manager/contracts';
 
 export interface AuditEventDto {
@@ -18,30 +19,30 @@ export interface AuditEventDto {
 export class AuditService {
   private readonly logger = new Logger(AuditService.name);
 
-  constructor(@Inject(INTERNAL_DB_POOL) private readonly db: Pool | null) {}
+  constructor(
+    @Inject(INTERNAL_DATA_SOURCE)
+    private readonly dataSource: DataSource | null,
+  ) {}
 
   async log(event: AuditEventDto): Promise<void> {
-    if (!this.db) {
+    if (!this.dataSource) {
       this.logger.debug(`[AUDIT] ${event.action} risk=${event.riskLevel}`);
       return;
     }
 
     try {
-      await this.db.query(
-        `INSERT INTO audit_logs
-           (workspace_id, connection_id, user_id, action, risk_level, resource, sql_preview, metadata)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [
-          event.workspaceId ?? null,
-          event.connectionId ?? null,
-          event.userId ?? null,
-          event.action,
-          event.riskLevel,
-          event.resource ?? null,
-          event.sqlPreview ? event.sqlPreview.substring(0, 500) : null,
-          event.metadata ? JSON.stringify(event.metadata) : null,
-        ],
-      );
+      await this.dataSource.getRepository(AuditLogEntity).insert({
+        workspaceId: event.workspaceId ?? null,
+        connectionId: event.connectionId ?? null,
+        userId: event.userId ?? null,
+        action: event.action,
+        riskLevel: event.riskLevel,
+        resource: event.resource ?? null,
+        sqlPreview: event.sqlPreview
+          ? event.sqlPreview.substring(0, 500)
+          : null,
+        metadata: event.metadata ?? null,
+      });
     } catch (err) {
       // Audit failures must never block the main operation
       this.logger.error('Failed to write audit log', err);
@@ -49,20 +50,15 @@ export class AuditService {
   }
 
   async findAll(workspaceId: string, limit = 100, offset = 0) {
-    if (!this.db) return { rows: [], total: 0 };
-    const { rows } = await this.db.query(
-      `SELECT id, workspace_id, connection_id, user_id, action, risk_level,
-              resource, sql_preview, metadata, created_at
-       FROM audit_logs
-       WHERE workspace_id = $1
-       ORDER BY created_at DESC
-       LIMIT $2 OFFSET $3`,
-      [workspaceId, limit, offset],
-    );
-    const { rows: countRows } = await this.db.query(
-      'SELECT COUNT(*) as total FROM audit_logs WHERE workspace_id = $1',
-      [workspaceId],
-    );
-    return { rows, total: Number(countRows[0]?.['total'] ?? 0) };
+    if (!this.dataSource) return { rows: [], total: 0 };
+    const [rows, total] = await this.dataSource
+      .getRepository(AuditLogEntity)
+      .findAndCount({
+        where: { workspaceId },
+        order: { createdAt: 'DESC' },
+        take: limit,
+        skip: offset,
+      });
+    return { rows, total };
   }
 }

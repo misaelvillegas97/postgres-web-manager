@@ -17,7 +17,7 @@ import {
   timingSafeEqual,
 } from 'crypto';
 import * as jwt from 'jsonwebtoken';
-import type { Pool, PoolClient } from 'pg';
+import type { DataSource, EntityManager } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import {
   type AuthMessageResponse,
@@ -33,29 +33,17 @@ import {
   UserRole,
 } from '@postgres-web-manager/contracts';
 import { getEnv } from '../../config/env.config';
-import { INTERNAL_DB_POOL } from '../../database/database.module';
+import { INTERNAL_DATA_SOURCE } from '../../database/database.module';
+import {
+  AuthEmailOtpEntity,
+  AuthRefreshTokenEntity,
+  UserEntity,
+  WorkspaceEntity,
+} from '../../database/entities';
+import { ResendMailService } from '../../mail/resend-mail.service';
 
 type MockUser = UserProfile & { passwordHash: string };
 type UserRecord = UserProfile & { passwordHash: string };
-type UserRow = {
-  id: string;
-  email: string;
-  display_name: string | null;
-  role: UserRole;
-  workspace_id: string;
-  password_hash: string;
-  email_verified_at: Date | string | null;
-};
-type RefreshTokenRow = {
-  user_id: string;
-};
-type OtpRow = {
-  id: string;
-  user_id: string | null;
-  code_hash: string;
-  attempts: number;
-  expires_at: Date | string;
-};
 type MockOtpRecord = {
   userId: string | null;
   codeHash: string;
@@ -63,8 +51,6 @@ type MockOtpRecord = {
   attempts: number;
   consumed: boolean;
 };
-
-type Queryable = Pick<Pool | PoolClient, 'query'>;
 
 const DEV_WORKSPACE_ID = '00000000-0000-4000-8000-000000000001';
 const ADMIN_USER_ID = '00000000-0000-4000-8000-000000000101';
@@ -107,7 +93,11 @@ export class AuthService {
   private readonly refreshTokens = new Set<string>();
   private readonly otpRecords = new Map<string, MockOtpRecord>();
 
-  constructor(@Inject(INTERNAL_DB_POOL) private readonly db: Pool | null) {}
+  constructor(
+    @Inject(INTERNAL_DATA_SOURCE)
+    private readonly dataSource: DataSource | null,
+    private readonly mailService = new ResendMailService(),
+  ) {}
 
   private get jwtSecret(): string {
     return getEnv().JWT_SECRET ?? 'dev-jwt-secret-not-for-production';
@@ -152,7 +142,7 @@ export class AuthService {
     }
 
     let userId: string;
-    if (!this.db) {
+    if (!this.dataSource) {
       userId = uuidv4();
       MOCK_USERS.push({
         id: userId,
@@ -164,30 +154,18 @@ export class AuthService {
         passwordHash: this.hashPassword(dto.password),
       });
     } else {
-      const client = await this.db.connect();
-      try {
-        await client.query('BEGIN');
-        const workspaceId = await this.createWorkspace(client, workspaceName);
-        const { rows } = await client.query<UserRow>(
-          `INSERT INTO users (workspace_id, email, display_name, role, password_hash)
-           VALUES ($1, $2, $3, $4, $5)
-           RETURNING id, email, display_name, role, workspace_id, password_hash, email_verified_at`,
-          [
-            workspaceId,
-            email,
-            name,
-            UserRole.OWNER,
-            this.hashPassword(dto.password),
-          ],
-        );
-        userId = rows[0].id;
-        await client.query('COMMIT');
-      } catch (err) {
-        await client.query('ROLLBACK');
-        throw err;
-      } finally {
-        client.release();
-      }
+      userId = await this.dataSource.transaction(async (manager) => {
+        const workspaceId = await this.createWorkspace(manager, workspaceName);
+        const user = manager.create(UserEntity, {
+          workspaceId,
+          email,
+          displayName: name,
+          role: UserRole.OWNER,
+          passwordHash: this.hashPassword(dto.password),
+          emailVerifiedAt: null,
+        });
+        return (await manager.save(user)).id;
+      });
     }
 
     return this.issueOtp(email, AuthOtpPurpose.EMAIL_CONFIRMATION, userId);
@@ -204,19 +182,20 @@ export class AuthService {
       throw new BadRequestException('Invalid or expired verification code');
     }
 
-    if (!this.db) {
+    if (!this.dataSource) {
       const user = MOCK_USERS.find((u) => u.id === userId);
       if (user) {
         user.emailVerified = true;
       }
     } else {
-      await this.db.query(
-        `UPDATE users
-         SET email_verified_at = COALESCE(email_verified_at, NOW()),
-             updated_at = NOW()
-         WHERE id = $1 AND lower(email) = lower($2)`,
-        [userId, email],
-      );
+      await this.dataSource
+        .getRepository(UserEntity)
+        .createQueryBuilder()
+        .update(UserEntity)
+        .set({ emailVerifiedAt: () => 'COALESCE(email_verified_at, NOW())' })
+        .where('id = :userId', { userId })
+        .andWhere('lower(email) = lower(:email)', { email })
+        .execute();
     }
 
     return {
@@ -264,7 +243,7 @@ export class AuthService {
     }
     const passwordHash = this.hashPassword(dto.password);
 
-    if (!this.db) {
+    if (!this.dataSource) {
       const user = MOCK_USERS.find((u) => u.id === userId);
       if (!user) {
         throw new NotFoundException('User not found');
@@ -272,19 +251,21 @@ export class AuthService {
       user.passwordHash = passwordHash;
       this.refreshTokens.clear();
     } else {
-      await this.db.query(
-        `UPDATE users
-         SET password_hash = $1,
-             updated_at = NOW()
-         WHERE id = $2 AND lower(email) = lower($3)`,
-        [passwordHash, userId, email],
-      );
-      await this.db.query(
-        `UPDATE auth_refresh_tokens
-         SET revoked_at = COALESCE(revoked_at, NOW())
-         WHERE user_id = $1`,
-        [userId],
-      );
+      await this.dataSource.transaction(async (manager) => {
+        await manager
+          .createQueryBuilder()
+          .update(UserEntity)
+          .set({ passwordHash })
+          .where('id = :userId', { userId })
+          .andWhere('lower(email) = lower(:email)', { email })
+          .execute();
+        await manager
+          .createQueryBuilder()
+          .update(AuthRefreshTokenEntity)
+          .set({ revokedAt: () => 'COALESCE(revoked_at, NOW())' })
+          .where('user_id = :userId', { userId })
+          .execute();
+      });
     }
 
     return {
@@ -399,35 +380,29 @@ export class AuthService {
   private async findUserByEmail(
     email: string,
   ): Promise<UserRecord | undefined> {
-    if (!this.db) {
+    if (!this.dataSource) {
       return MOCK_USERS.find(
         (u) => u.email.toLowerCase() === email.toLowerCase(),
       );
     }
 
-    const { rows } = await this.db.query<UserRow>(
-      `SELECT id, email, display_name, role, workspace_id, password_hash, email_verified_at
-       FROM users
-       WHERE lower(email) = lower($1)
-       LIMIT 1`,
-      [email],
-    );
-    return rows[0] ? this.toUserRecord(rows[0]) : undefined;
+    const user = await this.dataSource
+      .getRepository(UserEntity)
+      .createQueryBuilder('user')
+      .where('lower(user.email) = lower(:email)', { email })
+      .getOne();
+    return user ? this.toUserRecord(user) : undefined;
   }
 
   private async findUserById(id: string): Promise<UserRecord | undefined> {
-    if (!this.db) {
+    if (!this.dataSource) {
       return MOCK_USERS.find((u) => u.id === id);
     }
 
-    const { rows } = await this.db.query<UserRow>(
-      `SELECT id, email, display_name, role, workspace_id, password_hash, email_verified_at
-       FROM users
-       WHERE id = $1
-       LIMIT 1`,
-      [id],
-    );
-    return rows[0] ? this.toUserRecord(rows[0]) : undefined;
+    const user = await this.dataSource.getRepository(UserEntity).findOneBy({
+      id,
+    });
+    return user ? this.toUserRecord(user) : undefined;
   }
 
   private verifyPassword(password: string, passwordHash: string): boolean {
@@ -470,27 +445,24 @@ export class AuthService {
     userId: string,
     refreshToken: string,
   ): Promise<void> {
-    if (!this.db) {
+    if (!this.dataSource) {
       this.refreshTokens.add(refreshToken);
       return;
     }
 
-    await this.db.query(
-      `INSERT INTO auth_refresh_tokens (user_id, token_hash, expires_at)
-       VALUES ($1, $2, $3)`,
-      [
-        userId,
-        this.hashToken(refreshToken),
-        new Date(Date.now() + REFRESH_TOKEN_TTL * 1000),
-      ],
-    );
+    await this.dataSource.getRepository(AuthRefreshTokenEntity).insert({
+      userId,
+      tokenHash: this.hashToken(refreshToken),
+      expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL * 1000),
+      revokedAt: null,
+    });
   }
 
   private async rotateRefreshToken(
     oldToken: string,
     newToken: string,
   ): Promise<boolean> {
-    if (!this.db) {
+    if (!this.dataSource) {
       if (!this.refreshTokens.has(oldToken)) {
         return false;
       }
@@ -499,30 +471,33 @@ export class AuthService {
       return true;
     }
 
-    const { rows } = await this.db.query<RefreshTokenRow>(
-      `UPDATE auth_refresh_tokens
-       SET revoked_at = NOW()
-       WHERE token_hash = $1
-         AND revoked_at IS NULL
-         AND expires_at > NOW()
-       RETURNING user_id`,
-      [this.hashToken(oldToken)],
-    );
-    return rows.length === 1;
+    const result = await this.dataSource
+      .getRepository(AuthRefreshTokenEntity)
+      .createQueryBuilder()
+      .update(AuthRefreshTokenEntity)
+      .set({ revokedAt: new Date() })
+      .where('token_hash = :tokenHash', { tokenHash: this.hashToken(oldToken) })
+      .andWhere('revoked_at IS NULL')
+      .andWhere('expires_at > :now', { now: new Date() })
+      .execute();
+    return result.affected === 1;
   }
 
   private async revokeRefreshToken(refreshToken: string): Promise<void> {
-    if (!this.db) {
+    if (!this.dataSource) {
       this.refreshTokens.delete(refreshToken);
       return;
     }
 
-    await this.db.query(
-      `UPDATE auth_refresh_tokens
-       SET revoked_at = COALESCE(revoked_at, NOW())
-       WHERE token_hash = $1`,
-      [this.hashToken(refreshToken)],
-    );
+    await this.dataSource
+      .getRepository(AuthRefreshTokenEntity)
+      .createQueryBuilder()
+      .update(AuthRefreshTokenEntity)
+      .set({ revokedAt: () => 'COALESCE(revoked_at, NOW())' })
+      .where('token_hash = :tokenHash', {
+        tokenHash: this.hashToken(refreshToken),
+      })
+      .execute();
   }
 
   private hashToken(token: string): string {
@@ -530,17 +505,15 @@ export class AuthService {
   }
 
   private async createWorkspace(
-    client: Queryable,
+    manager: EntityManager,
     workspaceName: string,
   ): Promise<string> {
     const slug = `${this.slugify(workspaceName)}-${uuidv4().slice(0, 8)}`;
-    const { rows } = await client.query<{ id: string }>(
-      `INSERT INTO workspaces (name, slug)
-       VALUES ($1, $2)
-       RETURNING id`,
-      [workspaceName, slug],
-    );
-    return rows[0].id;
+    const workspace = manager.create(WorkspaceEntity, {
+      name: workspaceName,
+      slug,
+    });
+    return (await manager.save(workspace)).id;
   }
 
   private async issueOtp(
@@ -551,7 +524,7 @@ export class AuthService {
     const otp = this.generateOtp();
     const codeHash = this.hashOtp(email, purpose, otp);
 
-    if (!this.db) {
+    if (!this.dataSource) {
       this.otpRecords.set(this.otpKey(email, purpose), {
         userId,
         codeHash,
@@ -560,26 +533,33 @@ export class AuthService {
         consumed: false,
       });
     } else {
-      await this.db.query(
-        `UPDATE auth_email_otps
-         SET consumed_at = COALESCE(consumed_at, NOW())
-         WHERE lower(email) = lower($1)
-           AND purpose = $2
-           AND consumed_at IS NULL`,
-        [email, purpose],
-      );
-      await this.db.query(
-        `INSERT INTO auth_email_otps (user_id, email, purpose, code_hash, expires_at)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [
+      await this.dataSource.transaction(async (manager) => {
+        await manager
+          .createQueryBuilder()
+          .update(AuthEmailOtpEntity)
+          .set({ consumedAt: () => 'COALESCE(consumed_at, NOW())' })
+          .where('lower(email) = lower(:email)', { email })
+          .andWhere('purpose = :purpose', { purpose })
+          .andWhere('consumed_at IS NULL')
+          .execute();
+        await manager.getRepository(AuthEmailOtpEntity).insert({
           userId,
           email,
           purpose,
           codeHash,
-          new Date(Date.now() + OTP_TTL * 1000),
-        ],
-      );
+          attempts: 0,
+          expiresAt: new Date(Date.now() + OTP_TTL * 1000),
+          consumedAt: null,
+        });
+      });
     }
+
+    await this.mailService.sendOtpEmail({
+      to: email,
+      otp,
+      purpose,
+      expiresInSeconds: OTP_TTL,
+    });
 
     if (getEnv().NODE_ENV !== 'production') {
       this.logger.log(`OTP ${purpose} for ${email}: ${otp}`);
@@ -609,60 +589,39 @@ export class AuthService {
       throw new BadRequestException('Invalid or expired verification code');
     }
 
-    if (!this.db) {
+    if (!this.dataSource) {
       return this.consumeMockOtp(email, purpose, cleanOtp);
     }
 
-    const { rows } = await this.db.query<OtpRow>(
-      `SELECT id, user_id, code_hash, attempts, expires_at
-       FROM auth_email_otps
-       WHERE lower(email) = lower($1)
-         AND purpose = $2
-         AND consumed_at IS NULL
-       ORDER BY created_at DESC
-       LIMIT 1`,
-      [email, purpose],
-    );
-    const record = rows[0];
+    const otpRepository = this.dataSource.getRepository(AuthEmailOtpEntity);
+    const record = await otpRepository
+      .createQueryBuilder('otp')
+      .where('lower(otp.email) = lower(:email)', { email })
+      .andWhere('otp.purpose = :purpose', { purpose })
+      .andWhere('otp.consumed_at IS NULL')
+      .orderBy('otp.created_at', 'DESC')
+      .getOne();
     if (!record) {
       throw new BadRequestException('Invalid or expired verification code');
     }
 
     if (
-      new Date(record.expires_at).getTime() <= Date.now() ||
+      record.expiresAt.getTime() <= Date.now() ||
       record.attempts >= OTP_MAX_ATTEMPTS
     ) {
-      await this.db.query(
-        `UPDATE auth_email_otps
-         SET consumed_at = COALESCE(consumed_at, NOW())
-         WHERE id = $1`,
-        [record.id],
-      );
+      await otpRepository.update(record.id, { consumedAt: new Date() });
       throw new BadRequestException('Invalid or expired verification code');
     }
 
     if (
-      !this.matchesHash(
-        this.hashOtp(email, purpose, cleanOtp),
-        record.code_hash,
-      )
+      !this.matchesHash(this.hashOtp(email, purpose, cleanOtp), record.codeHash)
     ) {
-      await this.db.query(
-        `UPDATE auth_email_otps
-         SET attempts = attempts + 1
-         WHERE id = $1`,
-        [record.id],
-      );
+      await otpRepository.increment({ id: record.id }, 'attempts', 1);
       throw new BadRequestException('Invalid or expired verification code');
     }
 
-    await this.db.query(
-      `UPDATE auth_email_otps
-       SET consumed_at = NOW()
-       WHERE id = $1`,
-      [record.id],
-    );
-    return record.user_id;
+    await otpRepository.update(record.id, { consumedAt: new Date() });
+    return record.userId;
   }
 
   private consumeMockOtp(
@@ -740,15 +699,15 @@ export class AuthService {
     return slug || 'workspace';
   }
 
-  private toUserRecord(row: UserRow): UserRecord {
+  private toUserRecord(user: UserEntity): UserRecord {
     return {
-      id: row.id,
-      email: row.email,
-      name: row.display_name ?? row.email,
-      role: row.role,
-      workspaceId: row.workspace_id,
-      emailVerified: row.email_verified_at !== null,
-      passwordHash: row.password_hash,
+      id: user.id,
+      email: user.email,
+      name: user.displayName ?? user.email,
+      role: user.role,
+      workspaceId: user.workspaceId,
+      emailVerified: user.emailVerifiedAt !== null,
+      passwordHash: user.passwordHash,
     };
   }
 

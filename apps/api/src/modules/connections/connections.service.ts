@@ -7,7 +7,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { Pool } from 'pg';
+import type { DataSource, FindOptionsWhere } from 'typeorm';
 import {
   ConnectionProfile,
   ConnectionStatus,
@@ -15,12 +15,15 @@ import {
   TestConnectionDto,
   TestConnectionResult,
 } from '@postgres-web-manager/contracts';
-import { INTERNAL_DB_POOL } from '../../database/database.module';
+import { INTERNAL_DATA_SOURCE } from '../../database/database.module';
+import {
+  ConnectionAccessMode,
+  ConnectionProfileEntity,
+  ConnectionSslMode,
+} from '../../database/entities';
 import { CredentialsEncryptionService } from '../../crypto/credentials-encryption.service';
 import { PostgresPoolManager } from '../../postgres/postgres-pool.manager';
 import { SessionRegistryService } from '../sessions/session-registry.service';
-
-type DbRow = Record<string, unknown>;
 
 @Injectable()
 export class ConnectionsService {
@@ -30,46 +33,35 @@ export class ConnectionsService {
   private readonly invalidAutoUnlocks = new Set<string>();
 
   constructor(
-    @Inject(INTERNAL_DB_POOL) private readonly db: Pool | null,
+    @Inject(INTERNAL_DATA_SOURCE)
+    private readonly dataSource: DataSource | null,
     private readonly encryption: CredentialsEncryptionService,
     private readonly poolManager: PostgresPoolManager,
     private readonly sessionRegistry: SessionRegistryService,
   ) {}
 
   async findAll(workspaceId?: string): Promise<ConnectionProfile[]> {
-    if (!this.db) return [];
-    const { rows } = await this.db.query<DbRow>(
-      `SELECT id, workspace_id, name, host, port, database, username,
-              ssl_mode, access_mode, max_rows, statement_timeout_ms,
-              save_password, created_at, updated_at
-       FROM connection_profiles
-       WHERE ($1::uuid IS NULL OR workspace_id = $1)
-       ORDER BY name ASC`,
-      [workspaceId ?? null],
-    );
-    return rows.map(this.toProfile);
+    if (!this.dataSource) return [];
+    const query = this.dataSource
+      .getRepository(ConnectionProfileEntity)
+      .createQueryBuilder('profile')
+      .orderBy('profile.name', 'ASC');
+    if (workspaceId) {
+      query.where('profile.workspace_id = :workspaceId', { workspaceId });
+    }
+    return (await query.getMany()).map((profile) => this.toProfile(profile));
   }
 
   async findOne(id: string, workspaceId?: string): Promise<ConnectionProfile> {
-    if (!this.db) throw new NotFoundException(`Connection ${id} not found`);
-    const { rows } = await this.db.query<DbRow>(
-      `SELECT id, workspace_id, name, host, port, database, username,
-              ssl_mode, access_mode, max_rows, statement_timeout_ms,
-              save_password, created_at, updated_at
-       FROM connection_profiles
-       WHERE id = $1 AND ($2::uuid IS NULL OR workspace_id = $2)`,
-      [id, workspaceId ?? null],
-    );
-    if (rows.length === 0)
-      throw new NotFoundException(`Connection ${id} not found`);
-    return this.toProfile(rows[0]);
+    const profile = await this.findOneEntity(id, workspaceId);
+    return this.toProfile(profile);
   }
 
   async create(
     dto: CreateConnectionDto,
     workspaceId?: string,
   ): Promise<ConnectionProfile> {
-    if (!this.db) throw new Error('Internal database not configured');
+    if (!this.dataSource) throw new Error('Internal database not configured');
     const scopedWorkspaceId = this.requireWorkspaceId(workspaceId);
 
     let passwordEncrypted: string | null = null;
@@ -77,34 +69,29 @@ export class ConnectionsService {
       passwordEncrypted = this.encryption.encrypt(dto.password);
     }
 
-    const { rows } = await this.db.query<DbRow>(
-      `INSERT INTO connection_profiles
-         (workspace_id, name, host, port, database, username, password_encrypted,
-          ssl_mode, access_mode, max_rows, statement_timeout_ms, save_password)
-       VALUES (COALESCE($1, gen_random_uuid()), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-       RETURNING id, workspace_id, name, host, port, database, username,
-                 ssl_mode, access_mode, max_rows, statement_timeout_ms,
-                 save_password, created_at, updated_at`,
-      [
-        scopedWorkspaceId,
-        dto.name,
-        dto.host,
-        dto.port ?? 5432,
-        dto.database,
-        dto.username,
-        passwordEncrypted,
-        dto.sslMode ?? 'prefer',
-        dto.accessMode ?? 'read-write',
-        dto.maxRows ?? 1000,
-        dto.statementTimeoutMs ?? 30000,
-        dto.savePassword ?? false,
-      ],
-    );
+    const repository = this.dataSource.getRepository(ConnectionProfileEntity);
+    const profile = repository.create({
+      workspaceId: scopedWorkspaceId,
+      name: dto.name,
+      host: dto.host,
+      port: dto.port ?? 5432,
+      database: dto.database,
+      username: dto.username,
+      passwordEncrypted,
+      sslMode: (dto.sslMode ?? 'prefer') as ConnectionSslMode,
+      accessMode: (dto.accessMode ?? 'read-write') as ConnectionAccessMode,
+      maxRows: dto.maxRows ?? 1000,
+      statementTimeoutMs: dto.statementTimeoutMs ?? 30000,
+      savePassword: dto.savePassword ?? false,
+      color: null,
+      notes: null,
+    });
+    const savedProfile = await repository.save(profile);
 
     this.logger.log(
       `Connection created: ${dto.name} (${dto.host}) workspace=${scopedWorkspaceId}`,
     );
-    return this.toProfile(rows[0]);
+    return this.toProfile(savedProfile);
   }
 
   async update(
@@ -112,71 +99,57 @@ export class ConnectionsService {
     dto: Partial<CreateConnectionDto>,
     workspaceId?: string,
   ): Promise<ConnectionProfile> {
-    if (!this.db) throw new Error('Internal database not configured');
+    if (!this.dataSource) throw new Error('Internal database not configured');
     const scopedWorkspaceId = this.requireWorkspaceId(workspaceId);
+    const repository = this.dataSource.getRepository(ConnectionProfileEntity);
+    const profile = await repository.findOne({
+      where: { id, workspaceId: scopedWorkspaceId },
+    });
+    if (!profile) throw new NotFoundException(`Connection ${id} not found`);
 
-    // Build dynamic SET clause from provided fields
-    const updates: string[] = [];
-    const values: unknown[] = [];
-    let idx = 1;
-
-    const fieldMap: Record<string, string> = {
-      name: 'name',
-      host: 'host',
-      port: 'port',
-      database: 'database',
-      username: 'username',
-      sslMode: 'ssl_mode',
-      accessMode: 'access_mode',
-      maxRows: 'max_rows',
-      statementTimeoutMs: 'statement_timeout_ms',
-      savePassword: 'save_password',
+    let changed = false;
+    const assign = <Key extends keyof ConnectionProfileEntity>(
+      key: Key,
+      value: ConnectionProfileEntity[Key] | undefined,
+    ) => {
+      if (value !== undefined) {
+        profile[key] = value;
+        changed = true;
+      }
     };
 
-    for (const [dtoKey, dbCol] of Object.entries(fieldMap)) {
-      if (dtoKey in dto) {
-        updates.push(`${dbCol} = $${idx++}`);
-        values.push((dto as Record<string, unknown>)[dtoKey]);
-      }
-    }
+    assign('name', dto.name);
+    assign('host', dto.host);
+    assign('port', dto.port);
+    assign('database', dto.database);
+    assign('username', dto.username);
+    assign('sslMode', dto.sslMode as ConnectionSslMode | undefined);
+    assign('accessMode', dto.accessMode as ConnectionAccessMode | undefined);
+    assign('maxRows', dto.maxRows);
+    assign('statementTimeoutMs', dto.statementTimeoutMs);
+    assign('savePassword', dto.savePassword);
 
-    // Handle password separately
     if ('password' in dto && dto.password !== undefined) {
       if (dto.savePassword !== false) {
-        updates.push(`password_encrypted = $${idx++}`);
-        values.push(this.encryption.encrypt(dto.password));
+        profile.passwordEncrypted = this.encryption.encrypt(dto.password);
       } else {
-        updates.push(`password_encrypted = NULL`);
+        profile.passwordEncrypted = null;
       }
+      changed = true;
     }
 
-    if (updates.length === 0) return this.findOne(id, scopedWorkspaceId);
-
-    updates.push(`updated_at = NOW()`);
-    values.push(id);
-    values.push(scopedWorkspaceId);
-
-    const { rows } = await this.db.query<DbRow>(
-      `UPDATE connection_profiles SET ${updates.join(', ')}
-       WHERE id = $${idx} AND workspace_id = $${idx + 1}
-       RETURNING id, workspace_id, name, host, port, database, username,
-                 ssl_mode, access_mode, max_rows, statement_timeout_ms,
-                 save_password, created_at, updated_at`,
-      values,
-    );
-
-    if (rows.length === 0)
-      throw new NotFoundException(`Connection ${id} not found`);
-    return this.toProfile(rows[0]);
+    if (!changed) return this.toProfile(profile);
+    return this.toProfile(await repository.save(profile));
   }
 
   async remove(id: string, workspaceId?: string): Promise<void> {
-    if (!this.db) throw new Error('Internal database not configured');
-    const { rowCount } = await this.db.query(
-      'DELETE FROM connection_profiles WHERE id = $1 AND ($2::uuid IS NULL OR workspace_id = $2)',
-      [id, workspaceId ?? null],
-    );
-    if (rowCount === 0)
+    if (!this.dataSource) throw new Error('Internal database not configured');
+    const where: FindOptionsWhere<ConnectionProfileEntity> = { id };
+    if (workspaceId) where.workspaceId = workspaceId;
+    const result = await this.dataSource
+      .getRepository(ConnectionProfileEntity)
+      .delete(where);
+    if (result.affected === 0)
       throw new NotFoundException(`Connection ${id} not found`);
 
     // Clean up pool if it exists
@@ -360,30 +333,32 @@ export class ConnectionsService {
     id: string,
     workspaceId?: string,
   ): Promise<ConnectionProfile & { password?: string }> {
-    if (!this.db) throw new NotFoundException(`Connection ${id} not found`);
-    const { rows } = await this.db.query<DbRow>(
-      `SELECT id, workspace_id, name, host, port, database, username,
-              password_encrypted, ssl_mode, access_mode, max_rows,
-              statement_timeout_ms, save_password, created_at, updated_at
-       FROM connection_profiles
-       WHERE id = $1 AND ($2::uuid IS NULL OR workspace_id = $2)`,
-      [id, workspaceId ?? null],
-    );
-    if (rows.length === 0)
-      throw new NotFoundException(`Connection ${id} not found`);
-
-    const profile = this.toProfile(rows[0]);
+    const profileEntity = await this.findOneEntity(id, workspaceId);
+    const profile = this.toProfile(profileEntity);
     let password: string | undefined;
-    if (rows[0]['password_encrypted'] && this.encryption.isAvailable()) {
+    if (profileEntity.passwordEncrypted && this.encryption.isAvailable()) {
       try {
-        password = this.encryption.decrypt(
-          rows[0]['password_encrypted'] as string,
-        );
+        password = this.encryption.decrypt(profileEntity.passwordEncrypted);
       } catch {
         this.logger.warn(`Failed to decrypt password for connection ${id}`);
       }
     }
     return { ...profile, password };
+  }
+
+  private async findOneEntity(
+    id: string,
+    workspaceId?: string,
+  ): Promise<ConnectionProfileEntity> {
+    if (!this.dataSource)
+      throw new NotFoundException(`Connection ${id} not found`);
+    const where: FindOptionsWhere<ConnectionProfileEntity> = { id };
+    if (workspaceId) where.workspaceId = workspaceId;
+    const profile = await this.dataSource
+      .getRepository(ConnectionProfileEntity)
+      .findOne({ where });
+    if (!profile) throw new NotFoundException(`Connection ${id} not found`);
+    return profile;
   }
 
   private requireWorkspaceId(workspaceId?: string): string {
@@ -420,22 +395,22 @@ export class ConnectionsService {
     );
   }
 
-  private toProfile(row: DbRow): ConnectionProfile {
+  private toProfile(row: ConnectionProfileEntity): ConnectionProfile {
     return {
-      id: row['id'] as string,
-      workspaceId: (row['workspace_id'] as string) ?? '',
-      name: row['name'] as string,
-      host: row['host'] as string,
-      port: row['port'] as number,
-      database: row['database'] as string,
-      username: row['username'] as string,
-      sslMode: row['ssl_mode'] as ConnectionProfile['sslMode'],
-      accessMode: row['access_mode'] as ConnectionProfile['accessMode'],
-      maxRows: row['max_rows'] as number,
-      statementTimeoutMs: row['statement_timeout_ms'] as number,
-      savePassword: Boolean(row['save_password']),
-      createdAt: (row['created_at'] as Date).toISOString(),
-      updatedAt: (row['updated_at'] as Date).toISOString(),
+      id: row.id,
+      workspaceId: row.workspaceId,
+      name: row.name,
+      host: row.host,
+      port: row.port,
+      database: row.database,
+      username: row.username,
+      sslMode: row.sslMode,
+      accessMode: row.accessMode,
+      maxRows: row.maxRows,
+      statementTimeoutMs: row.statementTimeoutMs,
+      savePassword: row.savePassword,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
     };
   }
 }
