@@ -96,7 +96,7 @@ export class AuthService {
   constructor(
     @Inject(INTERNAL_DATA_SOURCE)
     private readonly dataSource: DataSource | null,
-    private readonly mailService = new ResendMailService(),
+    private readonly mailService: ResendMailService,
   ) {}
 
   private get jwtSecret(): string {
